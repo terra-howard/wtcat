@@ -5,8 +5,11 @@
 
 ## Context
 
-The owner obtained CTA-5007-B (April 2025) on 2026-11-14; decision 0002's option A has now happened. The
-document is distributed to CTA members. Its section 2 licenses only the CDDL snippets and Annex D, under the ISC
+The owner obtained CTA-5007-B (April 2025) on 2026-11-14, as a free ($0) purchase from CTA's shop; no membership
+was needed (an earlier note in decision 0002 said otherwise). CTA has offered its standards library free since
+2018 ([press release][free]). Free to download is not free to republish, though: CTA's [terms of use][terms] say
+its content may not be used without written permission except as the terms allow, and point copyright questions
+to copyright@cta.tech. Within the document, section 2 licenses only the CDDL snippets and Annex D, under the ISC
 licence with a notice requirement, and section 4.3.1.3 says its CBOR diagnostic-notation examples are not
 permissively licensed. Nothing licenses its prose or its encoded example tokens. This repository is headed for
 public GitHub.
@@ -14,17 +17,22 @@ public GitHub.
 ## Proposal
 
 1. **The PDF and its prose never enter the repository.** Code, comments and decision records cite section numbers
-   and state requirements in our own words.
+   and state requirements in our own words, and the README tells readers where to download the document free.
 2. **CDDL may be included** where it helps (for example, to check our decoder's shapes), with the ISC notice beside
    it, exactly as the licence asks.
-3. **The spec's example tokens and keys stay out of the repository.** Two of its three signing examples are useful
-   outside vectors (its HMAC 256/256 and PS256 examples verify against our code), so keep them in a local file the
-   repository ignores, read by tests behind a build tag (`go test -tags cta ./...`) that the owner can run. The
-   public tests keep using RFC 8392 and the COSE working group's vectors, plus tokens this project builds itself
-   from the rules.
-4. **Asking CTA** for permission to publish the examples remains possible, and is the owner's call.
+3. **The spec's example tokens and keys stay out of the repository, but anyone can reproduce the tests.** Two of
+   its three signing examples are useful outside vectors (its HMAC 256/256 and PS256 examples verify against our
+   code). Commit a small extraction program, our own code, that reads the text of a contributor's own downloaded
+   copy and writes the examples to a local file the repository ignores; tests behind a build tag
+   (`go test -tags cta ./...`) read that file. The public tests keep using RFC 8392 and the COSE working group's
+   vectors, plus tokens this project builds itself from the rules.
+4. **Asking CTA** (copyright@cta.tech) for permission to publish the examples remains possible, and is the owner's
+   call.
 
 ## Consequences
 
-- Public CI cannot run the CTA-example tests; they are a local, owner-run check.
-- Nothing published depends on members-only text.
+- Public CI cannot run the CTA-example tests; they run locally for anyone who has downloaded the document.
+- Nothing published reproduces CTA's text.
+
+[free]: https://www.cta.tech/press-releases/ctas-entire-library-of-industry-standards-now-free-to-everyone
+[terms]: https://www.ces.tech/about-ces/terms-of-use/
