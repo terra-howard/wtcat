@@ -1,13 +1,19 @@
 // Package cwt decodes CBOR Web Tokens (RFC 8392) and verifies their COSE protection.
 //
-// The API is proposed in docs/decisions/0006-cwt-package-api.md. Nothing is implemented yet: every function
-// returns ErrNotImplemented, so the protected tests in conformance/ fail until the work is done.
+// The API is set by docs/decisions/0006-cwt-package-api.md and the rules by 0008. Functions not yet written
+// return ErrNotImplemented, so the protected tests in conformance/ fail until the work is done.
 package cwt
 
 import (
 	"crypto"
 	"errors"
 )
+
+// isSentinel reports whether err already wraps one of this package's sentinel errors.
+func isSentinel(err error) bool {
+	return errors.Is(err, ErrVerification) || errors.Is(err, ErrMalformed) ||
+		errors.Is(err, ErrUnsupported) || errors.Is(err, ErrNotImplemented)
+}
 
 // Claims holds the registered claims of RFC 8392 Section 3.1 and keeps every other claim as raw CBOR.
 type Claims struct {
@@ -31,9 +37,6 @@ var (
 	// ErrNotImplemented is returned by every function until it is written.
 	ErrNotImplemented = errors.New("cwt: not implemented")
 )
-
-// DecodeClaims decodes an unprotected CWT Claims Set.
-func DecodeClaims(data []byte) (*Claims, error) { return nil, ErrNotImplemented }
 
 // VerifyMac0 verifies a COSE_Mac0 CWT with a symmetric key and returns its claims.
 func VerifyMac0(token, key []byte) (*Claims, error) { return nil, ErrNotImplemented }

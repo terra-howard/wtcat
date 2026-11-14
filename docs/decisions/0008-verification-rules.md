@@ -28,6 +28,9 @@ code does not yet handle something.
 4. **Claim values.** RFC 8392 Section 3: claim values "MUST NOT be prefixed with any CBOR tag", so a tagged
    registered claim is `ErrMalformed`. `iss`, `sub` and `aud` must be text strings, `cti` a byte string, and
    `exp`, `nbf` and `iat` integers. A floating-point date is `ErrUnsupported` (decision 0006).
+   Claim keys may be integers or text strings under RFC 8392, but every CAT claim uses an integer key and
+   `Claims.Other` holds integer keys only. A text-string claim key is `ErrUnsupported` rather than silently
+   dropped. Any other key type is `ErrMalformed`. (Added while writing task 1's tests.)
 5. **Duplicate map keys** are rejected wherever they occur. Two values for one claim or header parameter is
    exactly the ambiguity an attacker uses, where one component reads the first and another reads the last.
    Invalid UTF-8 in text strings is rejected. Indefinite-length items are allowed, because RFC 9052 does not
