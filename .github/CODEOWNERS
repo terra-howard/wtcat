@@ -1,0 +1,8 @@
+# Decision 0003, item 5: the owner reviews every change to the protected tests, the census that checks them, the
+# CI workflow that runs it, and the steering file that tells agents the rules. Branch protection must require
+# code-owner review for this file to take effect; that setting lives on GitHub.
+/conformance/       @terra-howard
+/cmd/census/        @terra-howard
+/internal/census/   @terra-howard
+/.github/           @terra-howard
+/AGENTS.md          @terra-howard

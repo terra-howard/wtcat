@@ -1,0 +1,32 @@
+# The gate from decision 0003, run on every push and pull request. Actions are pinned to full commit SHAs
+# (tags can be moved); the comment beside each gives the release it was resolved from on 2026-11-14.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Formatting
+        run: test -z "$(gofmt -l .)"
+      - name: Vet
+        run: go vet ./...
+      - name: Tests
+        run: go test -count=1 ./...
+      - name: Census of protected tests
+        run: go run ./cmd/census
+      - name: Fuzz (30 seconds per target)
+        run: |
+          for target in FuzzDecodeClaims FuzzVerifyMac0 FuzzVerifySign1; do
+            go test ./cwt -run='^$' -fuzz="^${target}\$" -fuzztime=30s
+          done

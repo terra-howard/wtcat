@@ -8,10 +8,10 @@ and know which keys and algorithms your issuer uses. A runnable version is `Exam
 
 ```go
 v := &cwt.Verifier{
-	Algorithms: []cwt.Algorithm{cwt.HMAC256x256}, // only what your issuer uses
-	Key:        lookupKey,                        // see step 2
-	Leeway:     30 * time.Second,                 // allowance for clock skew
-	RequireExpiry: true,                          // reject tokens that never expire
+	Algorithms:    []cwt.Algorithm{cwt.HMAC256x256}, // only what your issuer uses
+	Key:           lookupKey,                        // see step 2
+	Leeway:        30 * time.Second,                 // allowance for clock skew
+	RequireExpiry: true,                             // reject tokens that never expire
 }
 ```
 

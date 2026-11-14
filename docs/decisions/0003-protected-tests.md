@@ -47,3 +47,11 @@ anyone on this project, which is the point.
 
 - One small Go tool to build and maintain.
 - Protected tests become slower to change on purpose.
+
+## Implementation notes, 2026-11-14
+
+Prepared under the owner's delegation for the experiment (decision 0007), pending her review: the workflow is in
+`.github/workflows/ci.yml` and the owners file in `.github/CODEOWNERS`. `CODEOWNERS` also covers
+`internal/census/` (the census logic, beside its command) and `AGENTS.md` (the rules agents follow), both of which
+the gate depends on. Neither file does anything until the repository is on GitHub and branch protection requires
+code-owner review.
