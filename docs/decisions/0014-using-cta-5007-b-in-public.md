@@ -7,9 +7,10 @@
 
 The owner obtained CTA-5007-B (April 2025) on 2026-11-14, as a free ($0) purchase from CTA's shop; no membership
 was needed (an earlier note in decision 0002 said otherwise). CTA has offered its standards library free since
-2018 ([press release][free]). Free to download is not free to republish, though: CTA's [terms of use][terms] say
-its content may not be used without written permission except as the terms allow, and point copyright questions
-to copyright@cta.tech. Within the document, section 2 licenses only the CDDL snippets and Annex D, under the ISC
+2018 ([press release][free]). Free to download is not free to republish, though: the [terms of use][terms] on CTA's CES
+site say its content may not be used without written permission except as the terms allow, and point copyright
+questions to copyright@cta.tech. The standards shop's own terms could not be read (its pages refused automated
+requests). Within the document, section 2 licenses only the CDDL snippets and Annex D, under the ISC
 licence with a notice requirement, and section 4.3.1.3 says its CBOR diagnostic-notation examples are not
 permissively licensed. Nothing licenses its prose or its encoded example tokens. This repository is headed for
 public GitHub.
