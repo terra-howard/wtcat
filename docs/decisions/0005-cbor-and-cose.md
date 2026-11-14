@@ -1,7 +1,7 @@
 # 0005. CBOR and COSE support
 
-- **Status:** proposed, 2026-11-14
-- **Decision needed from:** Terra Howard
+- **Status:** accepted, 2026-11-14 (option B)
+- **Decided by:** Terra Howard
 
 ## Context
 
@@ -30,9 +30,10 @@ Candidates, checked through the GitHub API on 2026-11-14:
 - **C. Our own CBOR as well.** No dependencies, but CBOR decoding has edge cases (indefinite lengths, duplicate map
   keys, tags) that a mature library has already met.
 
-## Proposal
+## Decision
 
-B. Composing standard primitives around a fully specified structure, with outside test vectors as the referee, is
+B. fxamacker/cbor v2.10.0 (MIT; its one dependency, x448/float16, is also MIT) plus our own COSE_Mac0 and
+COSE_Sign1. Composing standard primitives around a fully specified structure, with outside test vectors as the referee, is
 a fair job for this project; a full CBOR decoder is not. Tag comparisons use `hmac.Equal`, never `==`.
 
 [cbor]: https://github.com/fxamacker/cbor

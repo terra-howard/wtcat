@@ -1,0 +1,8 @@
+# Protected tests. Format: SHA-256 (LF-normalised) of the file, path, top-level test name.
+# Never edited by agents. Changed only by the owner, with a decision record. See docs/decisions/0003-protected-tests.md.
+# Print a file's hash with: go run ./cmd/census hash FILE
+8e825f72c559b500b5414f5e205618e359930d5150867483bc172840aec00d00 conformance/rfc8392_test.go TestRFC8392A1ClaimsSet
+8e825f72c559b500b5414f5e205618e359930d5150867483bc172840aec00d00 conformance/rfc8392_test.go TestRFC8392A3SignedCWT
+8e825f72c559b500b5414f5e205618e359930d5150867483bc172840aec00d00 conformance/rfc8392_test.go TestRFC8392A3RejectsTampering
+8e825f72c559b500b5414f5e205618e359930d5150867483bc172840aec00d00 conformance/rfc8392_test.go TestRFC8392A4MACedCWT
+8e825f72c559b500b5414f5e205618e359930d5150867483bc172840aec00d00 conformance/rfc8392_test.go TestRFC8392A4RejectsTampering

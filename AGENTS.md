@@ -39,4 +39,5 @@ deliverables of equal weight. The process is explained in
 ## Commands
 
 - `go test ./...` runs every test.
-- The census gate for protected tests is planned in `docs/decisions/0003-protected-tests.md` and not built yet.
+- `go run ./cmd/census` is the gate for protected tests. Green means every protected test exists, ran, passed and
+  is unchanged. Red lists every reason. Run it before every commit.

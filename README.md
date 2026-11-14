@@ -3,7 +3,8 @@
 *Working title.* A Go validator for the Common Access Token (CAT, CTA-5007), a CBOR Web Token format that CDNs use
 to decide whether a request may fetch content.
 
-**Status:** phase 0. No code yet. There are two deliverables of equal weight: a validator worth using, and the
+**Status:** phase 1. The census gate works; the validator is a stub, so the protected tests fail by design until
+it is written. There are two deliverables of equal weight: a validator worth using, and the
 development process it is built with, written down in [docs/explanation/process.md](docs/explanation/process.md)
 so later projects can reuse it.
 
