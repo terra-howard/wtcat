@@ -35,5 +35,9 @@ signed), which test a structure step by step rather than only end to end.
    exact bytes signed (`ToBeSign_hex`) and the RSA public key. That checks the PS256 primitive (RSASSA-PSS with
    SHA-256 and MGF1 with SHA-256) against an outside answer, while A.3 checks the COSE_Sign1 envelope. That meets
    decision 0008's condition, so PS256 comes back as its own task, with its own prediction committed first.
-6. **Ordinary tests, not protected ones.** Adding to the protected set changes the manifest, which is the owner's
+6. **COSE_Sign1, added in task 3:** `sign1-tests/sign-pass-03.json` (untagged ES256) verifies end to end and its
+   `ToBeSign_hex` checks the signature structure byte for byte; `sign-fail-01`, `-02`, `-03`, `-04`, `-06` and
+   `-07` are rejected; `sign-pass-01` is the same deliberate divergence as `mac-pass-01`. `sign-pass-02` is left
+   out: it uses external authenticated data, which this API does not take.
+7. **Ordinary tests, not protected ones.** Adding to the protected set changes the manifest, which is the owner's
    to change. These vectors are proposed for promotion when she reviews this experiment.

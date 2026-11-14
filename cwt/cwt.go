@@ -1,18 +1,13 @@
 // Package cwt decodes CBOR Web Tokens (RFC 8392) and verifies their COSE protection.
 //
-// The API is set by docs/decisions/0006-cwt-package-api.md and the rules by 0008. Functions not yet written
-// return ErrNotImplemented, so the protected tests in conformance/ fail until the work is done.
+// The API is set by docs/decisions/0006-cwt-package-api.md and the verification rules by 0008.
 package cwt
 
-import (
-	"crypto"
-	"errors"
-)
+import "errors"
 
 // isSentinel reports whether err already wraps one of this package's sentinel errors.
 func isSentinel(err error) bool {
-	return errors.Is(err, ErrVerification) || errors.Is(err, ErrMalformed) ||
-		errors.Is(err, ErrUnsupported) || errors.Is(err, ErrNotImplemented)
+	return errors.Is(err, ErrVerification) || errors.Is(err, ErrMalformed) || errors.Is(err, ErrUnsupported)
 }
 
 // Claims holds the registered claims of RFC 8392 Section 3.1 and keeps every other claim as raw CBOR.
@@ -34,9 +29,4 @@ var (
 	ErrMalformed = errors.New("cwt: malformed token")
 	// ErrUnsupported means a valid construct this version does not handle.
 	ErrUnsupported = errors.New("cwt: unsupported")
-	// ErrNotImplemented is returned by every function until it is written.
-	ErrNotImplemented = errors.New("cwt: not implemented")
 )
-
-// VerifySign1 verifies a COSE_Sign1 CWT with a public key and returns its claims.
-func VerifySign1(token []byte, key crypto.PublicKey) (*Claims, error) { return nil, ErrNotImplemented }

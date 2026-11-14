@@ -15,7 +15,7 @@ Predictions committed at 15:22:33 EST, before any implementation.
 |---|---|---|---|---|---|---|
 | 1. `DecodeClaims` and the claim rules of decision 0008 | 2 | 15 min | yes (A.1) | 0 | under 2 min (15:22:33 to 15:24:11) | yes |
 | 2. COSE envelope and header rules, `VerifyMac0` | 3 | 25 min | yes (A.4) | 0 | about 4 min (15:24:11 to 15:28:38) | yes |
-| 3. `VerifySign1` with ES256 | 2 | 15 min | yes (A.3) | | | |
+| 3. `VerifySign1` with ES256 | 2 | 15 min | yes (A.3) | 0 | about 2 min (15:28:38 to 15:30:54) | yes |
 
 Confidence, stated so it can be scored: first verify on A.4 at about 70%, since HMAC 256/64 truncation and the
 exact bytes of the MAC structure are easy to get subtly wrong; on A.3 at about 80%; on A.1 at about 95%.

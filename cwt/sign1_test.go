@@ -1,0 +1,84 @@
+package cwt_test
+
+import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"errors"
+	"testing"
+
+	"github.com/fxamacker/cbor/v2"
+
+	"github.com/terra-howard/wtcat/cwt"
+)
+
+// es256Token signs claims as a tagged COSE_Sign1 with ES256 for rule tests. The signature structure is checked
+// against an outside vector in cose_wg_sign1_test.go.
+func es256Token(t *testing.T, priv *ecdsa.PrivateKey, protected map[int64]any, sigLen int) []byte {
+	t.Helper()
+	protectedRaw := encode(t, protected)
+	payload := encode(t, map[int64]any{1: "issuer"})
+	digest := sha256.Sum256(encode(t, []any{"Signature1", protectedRaw, []byte{}, payload}))
+	r, s, err := ecdsa.Sign(rand.Reader, priv, digest[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	sig := make([]byte, 64)
+	r.FillBytes(sig[:32])
+	s.FillBytes(sig[32:])
+	return encode(t, cbor.Tag{Number: 18, Content: []any{protectedRaw, map[int64]any{}, payload, sig[:sigLen]}})
+}
+
+func TestVerifySign1ES256(t *testing.T) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := cwt.VerifySign1(es256Token(t, priv, map[int64]any{1: -7}, 64), &priv.PublicKey)
+	if err != nil {
+		t.Fatalf("VerifySign1: %v", err)
+	}
+	if c.Issuer != "issuer" {
+		t.Fatalf("iss = %q", c.Issuer)
+	}
+}
+
+func TestVerifySign1Rejects(t *testing.T) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p384, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	good := es256Token(t, priv, map[int64]any{1: -7}, 64)
+	cases := []struct {
+		name  string
+		token []byte
+		key   any
+		want  error
+	}{
+		{"RSA key for ES256", good, &rsaKey.PublicKey, cwt.ErrVerification},
+		{"P-384 key for ES256", good, &p384.PublicKey, cwt.ErrVerification},
+		{"HMAC key for ES256", good, []byte("secret"), cwt.ErrVerification},
+		{"nil key", good, nil, cwt.ErrVerification},
+		{"short signature", es256Token(t, priv, map[int64]any{1: -7}, 63), &priv.PublicKey, cwt.ErrVerification},
+		{"HMAC algorithm in a COSE_Sign1", es256Token(t, priv, map[int64]any{1: 5}, 64), &priv.PublicKey, cwt.ErrUnsupported},
+		{"PS256 deferred", es256Token(t, priv, map[int64]any{1: -37}, 64), &rsaKey.PublicKey, cwt.ErrUnsupported},
+		{"COSE_Mac0 tag", encode(t, cbor.Tag{Number: 17, Content: []any{encode(t, map[int64]any{1: -7}), map[int64]any{}, []byte{0xa0}, make([]byte, 64)}}), &priv.PublicKey, cwt.ErrMalformed},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := cwt.VerifySign1(tc.token, tc.key); !errors.Is(err, tc.want) {
+				t.Fatalf("got %v, want an error wrapping %v", err, tc.want)
+			}
+		})
+	}
+}
