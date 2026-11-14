@@ -1,6 +1,7 @@
 package cwt_test
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -45,6 +46,28 @@ func TestVerifySign1ES256(t *testing.T) {
 	}
 }
 
+func TestVerifySign1PS256(t *testing.T) {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	protectedRaw := encode(t, map[int64]any{1: -37})
+	payload := encode(t, map[int64]any{1: "issuer"})
+	digest := sha256.Sum256(encode(t, []any{"Signature1", protectedRaw, []byte{}, payload}))
+	sig, err := rsa.SignPSS(rand.Reader, priv, crypto.SHA256, digest[:], &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := encode(t, cbor.Tag{Number: 18, Content: []any{protectedRaw, map[int64]any{}, payload, sig}})
+	c, err := cwt.VerifySign1(token, &priv.PublicKey)
+	if err != nil {
+		t.Fatalf("VerifySign1: %v", err)
+	}
+	if c.Issuer != "issuer" {
+		t.Fatalf("iss = %q", c.Issuer)
+	}
+}
+
 func TestVerifySign1Rejects(t *testing.T) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -71,7 +94,8 @@ func TestVerifySign1Rejects(t *testing.T) {
 		{"nil key", good, nil, cwt.ErrVerification},
 		{"short signature", es256Token(t, priv, map[int64]any{1: -7}, 63), &priv.PublicKey, cwt.ErrVerification},
 		{"HMAC algorithm in a COSE_Sign1", es256Token(t, priv, map[int64]any{1: 5}, 64), &priv.PublicKey, cwt.ErrUnsupported},
-		{"PS256 deferred", es256Token(t, priv, map[int64]any{1: -37}, 64), &rsaKey.PublicKey, cwt.ErrUnsupported},
+		{"PS256 label on an ECDSA signature", es256Token(t, priv, map[int64]any{1: -37}, 64), &rsaKey.PublicKey, cwt.ErrVerification},
+		{"ECDSA key for PS256", es256Token(t, priv, map[int64]any{1: -37}, 64), &priv.PublicKey, cwt.ErrVerification},
 		{"COSE_Mac0 tag", encode(t, cbor.Tag{Number: 17, Content: []any{encode(t, map[int64]any{1: -7}), map[int64]any{}, []byte{0xa0}, make([]byte, 64)}}), &priv.PublicKey, cwt.ErrMalformed},
 	}
 	for _, tc := range cases {

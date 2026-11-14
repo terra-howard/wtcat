@@ -41,4 +41,4 @@ code does not yet handle something.
    `ErrUnsupported`. Its only test here would be our own code signing and verifying with itself, which proves
    symmetry, not correctness. An expert does not ship cryptographic verification without an outside test vector.
    PS256 returns once one exists (for example a token produced by another CAT implementation, recorded as a
-   fixture with its source and licence). This narrows decision 0006, which listed PS256.
+   fixture with its source and licence). This narrows decision 0006, which listed PS256. **Update, same day:** the condition was met by the COSE working group's `rsa-pss-01` vector (decision 0009, item 5), and PS256 was restored in task 4, with RFC 8230's 2048-bit minimum key size enforced.

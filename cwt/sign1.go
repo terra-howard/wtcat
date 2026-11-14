@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/rsa"
 	"crypto/sha256"
 	"fmt"
 	"math/big"
@@ -32,7 +33,9 @@ func verifySign1Payload(token []byte, key crypto.PublicKey) ([]byte, error) {
 			return nil, err
 		}
 	case algPS256:
-		return nil, unsupported("PS256 is deferred until it has an outside test vector (decision 0008, rule 7)")
+		if err := verifyPS256(key, toBeSigned, msg.tag); err != nil {
+			return nil, err
+		}
 	default:
 		return nil, unsupported("algorithm %d for COSE_Sign1", msg.alg)
 	}
@@ -55,6 +58,24 @@ func verifyES256(key crypto.PublicKey, toBeSigned, sig []byte) error {
 	r := new(big.Int).SetBytes(sig[:32])
 	s := new(big.Int).SetBytes(sig[32:])
 	if !ecdsa.Verify(pub, digest[:], r, s) {
+		return ErrVerification
+	}
+	return nil
+}
+
+// verifyPS256 checks an RSASSA-PSS signature with SHA-256, MGF1 with SHA-256 and a 32-byte salt (RFC 8230
+// Section 2), on a key of at least 2048 bits, which RFC 8230 requires.
+func verifyPS256(key crypto.PublicKey, toBeSigned, sig []byte) error {
+	pub, ok := key.(*rsa.PublicKey)
+	if !ok || pub == nil || pub.N == nil {
+		return fmt.Errorf("%w: PS256 needs an *rsa.PublicKey, got %T", ErrVerification, key)
+	}
+	if pub.N.BitLen() < 2048 {
+		return fmt.Errorf("%w: PS256 key is %d bits; RFC 8230 requires at least 2048", ErrVerification, pub.N.BitLen())
+	}
+	digest := sha256.Sum256(toBeSigned)
+	opts := &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: crypto.SHA256}
+	if err := rsa.VerifyPSS(pub, crypto.SHA256, digest[:], sig, opts); err != nil {
 		return ErrVerification
 	}
 	return nil
