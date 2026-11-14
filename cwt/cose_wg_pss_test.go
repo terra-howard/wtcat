@@ -5,8 +5,10 @@ package cwt
 // vectors check the COSE_Sign1 envelope.
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -91,14 +93,29 @@ func TestPS256MatchesCOSEWG(t *testing.T) {
 	}
 }
 
-func TestPS256Rejects(t *testing.T) {
-	pub, toBeSigned, sig := loadPSS(t)
-	changed := append([]byte{}, sig...)
-	changed[len(changed)-1] ^= 0x01
+// TestPS256RejectsKeysBelow2048Bits uses a signature that is valid for its own 1024-bit key, so only the size
+// rule can reject it. (A first version reused the vector's signature, which fails on any other key regardless;
+// hand mutation testing showed the size rule could be weakened without that test noticing.)
+func TestPS256RejectsKeysBelow2048Bits(t *testing.T) {
 	small, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
 		t.Fatal(err)
 	}
+	toBeSigned := []byte("any bytes")
+	digest := sha256.Sum256(toBeSigned)
+	sig, err := rsa.SignPSS(rand.Reader, small, crypto.SHA256, digest[:], &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyPS256(&small.PublicKey, toBeSigned, sig); !errors.Is(err, ErrVerification) {
+		t.Fatalf("got %v, want ErrVerification for a 1024-bit key", err)
+	}
+}
+
+func TestPS256Rejects(t *testing.T) {
+	pub, toBeSigned, sig := loadPSS(t)
+	changed := append([]byte{}, sig...)
+	changed[len(changed)-1] ^= 0x01
 	cases := []struct {
 		name string
 		key  any
@@ -107,7 +124,6 @@ func TestPS256Rejects(t *testing.T) {
 		{"signature changed", pub, changed},
 		{"ECDSA-shaped key", []byte("not an RSA key"), sig},
 		{"nil key", nil, sig},
-		{"1024-bit key, below RFC 8230's 2048-bit floor", &small.PublicKey, sig},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

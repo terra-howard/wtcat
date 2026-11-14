@@ -1,6 +1,6 @@
 # 0013. Mutation testing with Gremlins
 
-- **Status:** accepted, 2026-11-14
+- **Status:** accepted, 2026-11-14; the tool run is blocked pending the owner's permission (see below)
 - **Decided by:** Claude, under Terra Howard's delegation for an experiment (see decision 0007). Pending her
   review; she may reverse it.
 
@@ -36,3 +36,10 @@ which keeps runs short.
 
 [gremlins]: https://github.com/go-gremlins/gremlins
 [mutesting]: https://github.com/avito-tech/go-mutesting
+
+## What happened
+
+The permission system declined to download and run Gremlins while the owner was away, classifying it as
+undermining oversight. That call is respected, not worked around; running the tool is hers to allow. A hand
+spot-check of 15 mutants ran instead, using only this repository's code and tests. It found two real test gaps,
+both fixed; see `docs/reference/measurements.md`.

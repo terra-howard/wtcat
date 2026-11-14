@@ -68,6 +68,39 @@ func TestVerifySign1PS256(t *testing.T) {
 	}
 }
 
+// TestVerifySign1RejectsNonCanonicalES256 drops the leading zero byte of s from a valid signature. The value is
+// unchanged, so only the 64-byte length rule can reject it. (Hand mutation testing showed a looser length check
+// survived the earlier short-signature test, which dropped an arbitrary byte.)
+func TestVerifySign1RejectsNonCanonicalES256(t *testing.T) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	protectedRaw := encode(t, map[int64]any{1: -7})
+	payload := encode(t, map[int64]any{1: "issuer"})
+	digest := sha256.Sum256(encode(t, []any{"Signature1", protectedRaw, []byte{}, payload}))
+	var sig []byte
+	for i := 0; i < 10000 && sig == nil; i++ { // about 1 in 256 signatures has s below 2^248
+		r, s, err := ecdsa.Sign(rand.Reader, priv, digest[:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		full := make([]byte, 64)
+		r.FillBytes(full[:32])
+		s.FillBytes(full[32:])
+		if full[32] == 0 {
+			sig = append(full[:32:32], full[33:]...) // 63 bytes, same r and s values
+		}
+	}
+	if sig == nil {
+		t.Fatal("no signature with a leading zero in s after 10000 tries")
+	}
+	token := encode(t, cbor.Tag{Number: 18, Content: []any{protectedRaw, map[int64]any{}, payload, sig}})
+	if _, err := cwt.VerifySign1(token, &priv.PublicKey); !errors.Is(err, cwt.ErrVerification) {
+		t.Fatalf("got %v, want ErrVerification for a 63-byte encoding", err)
+	}
+}
+
 func TestVerifySign1Rejects(t *testing.T) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
