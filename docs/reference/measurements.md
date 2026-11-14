@@ -20,6 +20,7 @@ Predictions committed at 15:22:33 EST, before any implementation.
 | 5. `Claims.CheckTime` under decision 0010 (prediction committed at 15:33:39) | 1 | 4 min | not applicable (no outside vector; boundary tests, about 75% all pass first run) | 0 | about 2 min (15:33:39 to 15:34:22) | all passed first run |
 | 6. Fuzz targets under decision 0011, 60 s each (prediction committed at 15:34:43) | 1 | 6 min | no panics and no unclassified errors found, about 70% | 0 | about 5 min (15:34:43 to 15:38:34), 3 min of it fuzzing | none found: 15,833,193 inputs to `DecodeClaims`, 18,042,147 to `VerifyMac0`, 17,899,962 to `VerifySign1` |
 | 7. `Verifier` under decision 0012, with a refactor of the COSE layer (prediction committed at 15:39:23) | 1 | 6 min | RFC vectors verify through it first run, about 85%; all tests pass first run, about 65% | 0 | about 5 min (15:39:23 to 15:41:51), including a 40 s regression fuzz (6,904,864 and 5,368,626 inputs, none failing) | yes; yes |
+| 8. Mutation testing of `cwt` under decision 0013 (prediction committed at 15:42:32) | not applicable | 8 min | test efficacy at least 80%, about 60%; survivors mostly in overflow guards or error wrapping rather than verification | | | |
 
 Confidence, stated so it can be scored: first verify on A.4 at about 70%, since HMAC 256/64 truncation and the
 exact bytes of the MAC structure are easy to get subtly wrong; on A.3 at about 80%; on A.1 at about 95%.
