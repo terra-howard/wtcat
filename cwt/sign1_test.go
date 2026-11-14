@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"testing"
 
@@ -14,23 +15,6 @@ import (
 
 	"github.com/terra-howard/wtcat/cwt"
 )
-
-// es256Token signs claims as a tagged COSE_Sign1 with ES256 for rule tests. The signature structure is checked
-// against an outside vector in cose_wg_sign1_test.go.
-func es256Token(t *testing.T, priv *ecdsa.PrivateKey, protected map[int64]any, sigLen int) []byte {
-	t.Helper()
-	protectedRaw := encode(t, protected)
-	payload := encode(t, map[int64]any{1: "issuer"})
-	digest := sha256.Sum256(encode(t, []any{"Signature1", protectedRaw, []byte{}, payload}))
-	r, s, err := ecdsa.Sign(rand.Reader, priv, digest[:])
-	if err != nil {
-		t.Fatal(err)
-	}
-	sig := make([]byte, 64)
-	r.FillBytes(sig[:32])
-	s.FillBytes(sig[32:])
-	return encode(t, cbor.Tag{Number: 18, Content: []any{protectedRaw, map[int64]any{}, payload, sig[:sigLen]}})
-}
 
 func TestVerifySign1ES256(t *testing.T) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -138,4 +122,35 @@ func TestVerifySign1Rejects(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Added after Gremlins (task 11). Kills mutants that would let a typed nil key through to a nil dereference.
+func TestVerifySign1RejectsTypedNilKeys(t *testing.T) {
+	es256 := mustHexBytes(t, seedSignedA3)
+	if _, err := cwt.VerifySign1(es256, (*ecdsa.PublicKey)(nil)); !errors.Is(err, cwt.ErrVerification) {
+		t.Fatalf("typed nil ECDSA key: got %v, want ErrVerification", err)
+	}
+	ps256 := encode(t, cbor.Tag{Number: 18, Content: []any{encode(t, map[int64]any{1: -37}), map[int64]any{}, encode(t, map[int64]any{1: "x"}), make([]byte, 256)}})
+	if _, err := cwt.VerifySign1(ps256, (*rsa.PublicKey)(nil)); !errors.Is(err, cwt.ErrVerification) {
+		t.Fatalf("typed nil RSA key: got %v, want ErrVerification", err)
+	}
+}
+
+func FuzzVerifySign1(f *testing.F) {
+	seed(f, seedSignedA3, seedMacedA4, seedClaimsA1)
+	point, err := hex.DecodeString(keyA23Point)
+	if err != nil {
+		f.Fatal(err)
+	}
+	pub, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), point)
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Fuzz(func(t *testing.T, data []byte) {
+		c, err := cwt.VerifySign1(data, pub)
+		checkClassified(t, err, cwt.ErrVerification, cwt.ErrMalformed, cwt.ErrUnsupported)
+		if err == nil && c == nil {
+			t.Fatal("nil claims without an error")
+		}
+	})
 }

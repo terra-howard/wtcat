@@ -1,12 +1,11 @@
 package cwt
 
-// Tests against the COSE working group's examples (decision 0009). They call the internal COSE layer because the
-// examples' payloads are plain text, not CWT claims sets.
+// COSE_Mac0 tests against the COSE working group's examples (decision 0009). They call the internal layer because
+// the examples' payloads are plain text, not CWT claims sets.
 
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"os"
@@ -45,15 +44,6 @@ func loadCOSEWG(t *testing.T, name string) coseWGVector {
 		t.Fatalf("%s: %v", name, err)
 	}
 	return v
-}
-
-func mustHexT(t *testing.T, s string) []byte {
-	t.Helper()
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return b
 }
 
 func macKey(t *testing.T, v coseWGVector) []byte {

@@ -1,6 +1,3 @@
-// Package cwt decodes CBOR Web Tokens (RFC 8392) and verifies their COSE protection.
-//
-// The API is set by docs/decisions/0006-cwt-package-api.md and the verification rules by 0008.
 package cwt
 
 import "errors"

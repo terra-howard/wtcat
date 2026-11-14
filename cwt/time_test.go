@@ -9,8 +9,6 @@ import (
 	"github.com/terra-howard/wtcat/cwt"
 )
 
-func ptr(v int64) *int64 { return &v }
-
 func TestCheckTimeBoundaries(t *testing.T) {
 	const exp, nbf = 2_000_000_000, 1_999_000_000
 	c := &cwt.Claims{Expiry: ptr(exp), NotBefore: ptr(nbf)}

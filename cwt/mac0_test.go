@@ -1,8 +1,7 @@
 package cwt_test
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"testing"
 
@@ -10,53 +9,6 @@ import (
 
 	"github.com/terra-howard/wtcat/cwt"
 )
-
-var testKey = []byte("0123456789abcdef0123456789abcdef")
-
-// mac0Token builds a COSE_Mac0 token for rule tests. Its MAC structure follows RFC 9052 Section 6.3; the
-// structure itself is checked against an outside vector in cose_wg_test.go, so a shared mistake would show there.
-type mac0Token struct {
-	protectedRaw []byte // the encoded protected header map
-	unprotected  map[int64]any
-	payload      any // []byte, or nil for a detached payload
-	alg          int64
-	tagLen       int    // bytes of MAC tag to keep
-	coseTag      uint64 // 0 for untagged
-	cwtTag       bool
-	key          []byte
-}
-
-func defaultMac0(t *testing.T) mac0Token {
-	return mac0Token{
-		protectedRaw: encode(t, map[int64]any{1: 5}),
-		unprotected:  map[int64]any{},
-		payload:      encode(t, map[int64]any{1: "issuer", 2: "subject"}),
-		alg:          5,
-		tagLen:       32,
-		coseTag:      17,
-		key:          testKey,
-	}
-}
-
-func (m mac0Token) build(t *testing.T) []byte {
-	t.Helper()
-	var payloadBytes []byte
-	if b, ok := m.payload.([]byte); ok {
-		payloadBytes = b
-	}
-	toMac := encode(t, []any{"MAC0", m.protectedRaw, []byte{}, payloadBytes})
-	h := hmac.New(sha256.New, m.key)
-	h.Write(toMac)
-	tag := h.Sum(nil)[:m.tagLen]
-	var body any = []any{m.protectedRaw, m.unprotected, m.payload, tag}
-	if m.coseTag != 0 {
-		body = cbor.Tag{Number: m.coseTag, Content: body}
-	}
-	if m.cwtTag {
-		body = cbor.Tag{Number: 61, Content: body}
-	}
-	return encode(t, body)
-}
 
 func TestVerifyMac0AcceptsHMAC256(t *testing.T) {
 	for _, tc := range []struct {
@@ -139,4 +91,37 @@ func TestVerifyMac0RejectsWrongShapes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Added after Gremlins (task 11). Kills the boundary mutant on the payload length check, which would index an empty payload and panic.
+func TestVerifyMac0RejectsAnEmptyPayload(t *testing.T) {
+	m := defaultMac0(t)
+	m.payload = []byte{}
+	if _, err := cwt.VerifyMac0(m.build(t), testKey); !errors.Is(err, cwt.ErrMalformed) {
+		t.Fatalf("got %v, want ErrMalformed", err)
+	}
+}
+
+// Added after Gremlins (task 11). Covers the payload type check, which no test reached.
+func TestVerifyMac0RejectsANonBytePayload(t *testing.T) {
+	m := defaultMac0(t)
+	m.payload = map[int64]any{1: "issuer"} // a map where a byte string belongs
+	if _, err := cwt.VerifyMac0(m.build(t), testKey); !errors.Is(err, cwt.ErrMalformed) {
+		t.Fatalf("got %v, want ErrMalformed", err)
+	}
+}
+
+func FuzzVerifyMac0(f *testing.F) {
+	seed(f, seedMacedA4, seedSignedA3, seedClaimsA1)
+	key, err := hex.DecodeString(keyA22)
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Fuzz(func(t *testing.T, data []byte) {
+		c, err := cwt.VerifyMac0(data, key)
+		checkClassified(t, err, cwt.ErrVerification, cwt.ErrMalformed, cwt.ErrUnsupported)
+		if err == nil && c == nil {
+			t.Fatal("nil claims without an error")
+		}
+	})
 }

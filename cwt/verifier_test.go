@@ -1,9 +1,6 @@
 package cwt_test
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"encoding/hex"
 	"errors"
 	"testing"
 	"time"
@@ -12,43 +9,6 @@ import (
 
 	"github.com/terra-howard/wtcat/cwt"
 )
-
-// insideA1Window is a moment inside RFC 8392 A.1's validity window (nbf 1443944944, exp 1444064944).
-func insideA1Window() time.Time { return time.Unix(1443944944+60, 0) }
-
-func rfcKeys(t *testing.T) cwt.KeyFunc {
-	t.Helper()
-	hmacKey, err := hex.DecodeString(keyA22)
-	if err != nil {
-		t.Fatal(err)
-	}
-	point, err := hex.DecodeString(keyA23Point)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pub, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), point)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return func(kid []byte, alg cwt.Algorithm) (any, error) {
-		switch string(kid) {
-		case "Symmetric256":
-			return hmacKey, nil
-		case "AsymmetricECDSA256":
-			return pub, nil
-		}
-		return nil, errors.New("no such key")
-	}
-}
-
-func mustHexBytes(t *testing.T, s string) []byte {
-	t.Helper()
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return b
-}
 
 func TestVerifierAcceptsRFCTokens(t *testing.T) {
 	v := &cwt.Verifier{
@@ -185,5 +145,35 @@ func TestVerifierConfigurationErrors(t *testing.T) {
 				t.Fatalf("got %v, want a plain configuration error", err)
 			}
 		})
+	}
+}
+
+// Added after Gremlins (task 11). Covers the Verifier's rejection of a tag that is neither COSE_Mac0 nor COSE_Sign1.
+func TestVerifierRejectsAForeignCOSETag(t *testing.T) {
+	m := defaultMac0(t)
+	m.coseTag = 98 // COSE_Sign
+	v := &cwt.Verifier{
+		Algorithms: []cwt.Algorithm{cwt.HMAC256x256},
+		Key:        func([]byte, cwt.Algorithm) (any, error) { return testKey, nil },
+	}
+	if _, err := v.Verify(m.build(t)); !errors.Is(err, cwt.ErrMalformed) {
+		t.Fatalf("got %v, want ErrMalformed", err)
+	}
+}
+
+// Added after Gremlins (task 11). Covers the Verifier's refusal of an allowed algorithm it cannot verify.
+func TestVerifierRefusesAnAllowedButUnknownAlgorithm(t *testing.T) {
+	m := defaultMac0(t)
+	m.protectedRaw = encode(t, map[int64]any{1: 4242})
+	called := false
+	v := &cwt.Verifier{
+		Algorithms: []cwt.Algorithm{cwt.Algorithm(4242)},
+		Key:        func([]byte, cwt.Algorithm) (any, error) { called = true; return testKey, nil },
+	}
+	if _, err := v.Verify(m.build(t)); !errors.Is(err, cwt.ErrUnsupported) {
+		t.Fatalf("got %v, want ErrUnsupported", err)
+	}
+	if called {
+		t.Fatal("key lookup ran for an algorithm the package cannot verify")
 	}
 }

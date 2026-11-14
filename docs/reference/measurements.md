@@ -24,7 +24,7 @@ Predictions committed at 15:22:33 EST, before any implementation.
 | 9. `ExampleVerifier` and a how-to guide (prediction committed at 15:46:11) | 0 | 4 min | the example's output check passes first run, about 90% | 0 | about 2 min (15:46:11 to 15:46:35) | yes |
 | 11. Gremlins v0.6.0 on `cwt`, after the owner allowed it (prediction committed at 15:57:54) | not applicable | 5 min | test efficacy (killed over killed plus lived) at least 85%, about 65%; lived mutants mostly where a second check guards the same rule, as the hand spot-check found | not applicable | 39 s of mutation testing; analysis to 16:01:22 | efficacy 87.30% (110 killed, 16 lived, 22 not covered; mutator coverage 85.14%). First half held. Second half partly wrong: 7 of 16 lived mutants were equivalent, but 9 were real gaps, two of which would panic (an empty payload, a typed-nil key) |
 | 11b. Gremlins re-run after tests for the 9 real gaps and 3 uncovered paths (prediction committed at 16:01:22) | not applicable | 4 min | lived falls to the 7 equivalent mutants; the 11 case-expression mutants stay not covered even though tests reach them (a coverage artifact), about 70% | not applicable | 16:01:22 to 16:04:15, three Gremlins runs of about 39 s each | held. With the timeout coefficient at 10: 119 killed, 7 lived (exactly the 7 equivalent), 22 not covered, 0 timed out; efficacy 94.44%. All 18 case-expression mutants stayed not covered, including three branches the new tests demonstrably reach, which confirms the coverage artifact; the other 4 are constants. A run at the default timeout reported 13 timeouts, 11 of them mutants killed outright in the first run, so they were load, not hangs |
-| 12. Refactor `cwt` so every test file pairs with its subject by name (prediction committed at 16:21:37) | 1 | 6 min | the list of test names is identical before and after, and the census stays green, about 85% | | | |
+| 12. Refactor `cwt` so every test file pairs with its subject by name (prediction committed at 16:21:37) | 1 | 6 min | the list of test names is identical before and after, and the census stays green, about 85% | 0 | about 8 min (16:21:37 to 16:24:05) | yes: 46 test, fuzz and example names identical (`go test -list`, diffed); census green |
 
 Confidence, stated so it can be scored: first verify on A.4 at about 70%, since HMAC 256/64 truncation and the
 exact bytes of the MAC structure are easy to get subtly wrong; on A.3 at about 80%; on A.1 at about 95%.
@@ -72,7 +72,7 @@ Run with `go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash --i
 | After new tests, default timeout | 106 | 7 | 22 | 13 | 93.81% |
 | After new tests, timeout coefficient 10 | 119 | 7 | 22 | 0 | 94.44% |
 
-**The nine real gaps the first run found,** each now killed by a test in `cwt/mutation_gaps_test.go`: half and
+**The nine real gaps the first run found,** each now killed by a test (written in `cwt/mutation_gaps_test.go`, then moved beside its subject in task 12): half and
 single precision dates, a non-float simple value in a date, tagged claims outside 1 to 7 (which RFC 8392 allows),
 claim key `MaxInt64`, an empty payload (the mutant indexed it and would panic), and typed-nil ECDSA and RSA keys
 (the mutants dereferenced them and would panic). Tests were also added for three paths no test reached: a foreign
