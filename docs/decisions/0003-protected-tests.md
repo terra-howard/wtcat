@@ -1,7 +1,7 @@
 # 0003. Protected tests and the census gate
 
-- **Status:** proposed, 2026-11-14
-- **Decision needed from:** Terra Howard
+- **Status:** accepted, 2026-11-14
+- **Decided by:** Terra Howard
 
 ## Context
 
@@ -9,7 +9,7 @@ A build can be turned green by removing what makes it red. The tests that encode
 need protection that does not depend on every contributor resisting that shortcut. Ordinary tests stay free to
 change through normal review.
 
-## Proposal
+## Decision
 
 1. **Where they live.** Protected tests go in a `conformance/` package and nowhere else.
 2. **The manifest.** `conformance/MANIFEST` lists each protected test by its full `go test` name, with the SHA-256
@@ -34,8 +34,8 @@ change through normal review.
 8. **Until the remote exists,** the gate runs locally as a command, and later in CI on every commit.
 9. **Line endings.** This machine's Git converts LF to CRLF on checkout, and a hash of a CRLF file differs from a
    hash of the same file with LF. The census hashes content with line endings normalised to LF, and a
-   `.gitattributes` with `* text=auto eol=lf` keeps working copies identical across platforms. Adding that file
-   is part of accepting this decision.
+   `.gitattributes` with `* text=auto eol=lf` keeps working copies identical across platforms. That file was
+   added when this decision was accepted.
 
 ## First protected set
 

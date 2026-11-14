@@ -5,8 +5,9 @@ too where it makes sense.
 
 ## What this repository is
 
-A Go validator for the Common Access Token (CTA-5007), built to establish a development process. The process is
-explained in [docs/explanation/process.md](docs/explanation/process.md). Read it once per session.
+A Go validator for the Common Access Token (CTA-5007), and the development process it is built with. Both are
+deliverables of equal weight. The process is explained in
+[docs/explanation/process.md](docs/explanation/process.md). Read it once per session.
 
 ## Rules that do not bend
 

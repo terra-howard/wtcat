@@ -1,7 +1,7 @@
 # 0004. Licence
 
-- **Status:** open, 2026-11-14
-- **Decision needed from:** Terra Howard
+- **Status:** accepted, 2026-11-14
+- **Decided by:** Terra Howard
 
 ## Context
 
@@ -17,4 +17,5 @@ The repository is headed for GitHub as a public project. The other CAT implement
 
 ## Decision
 
-Not made. No licence file is added until it is.
+Apache-2.0. The licence text in `LICENSE` is the Apache Software Foundation's own, fetched from
+<https://www.apache.org/licenses/LICENSE-2.0.txt>.

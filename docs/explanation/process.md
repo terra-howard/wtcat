@@ -1,7 +1,9 @@
 # How work happens here, and why
 
-This page explains the development process this repository exists to establish. The Common Access Token
-validator is deliberately small so that the process, not the product, is what gets tested.
+This page explains the development process this repository establishes. The process and the Common Access Token
+validator matter equally. The validator is small enough that the process can be seen clearly at work, and the
+process is held to the standard of producing a validator worth using. A process that only produces a toy has not
+proved anything.
 
 ## The problem the process answers
 

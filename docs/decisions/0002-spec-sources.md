@@ -1,7 +1,7 @@
 # 0002. Where the specification comes from
 
-- **Status:** proposed, 2026-11-14
-- **Decision needed from:** Terra Howard
+- **Status:** accepted, 2026-11-14 (option C)
+- **Decided by:** Terra Howard
 
 ## Context
 
@@ -32,9 +32,10 @@ the code goes public.
   worked examples, plus claims whose behaviour public sources settle. Everything else is marked `spec-needed`.
 - **C. Both:** start B immediately, and widen to the full claim set if A comes through.
 
-## Proposal
+## Decision
 
-C. The CWT core is enough to establish the process, and it needs nothing that is not public.
+C. Build the CWT core from RFC 8392 now, plus claims whose behaviour public sources settle, and widen to the full
+claim set if CTA-5007-B becomes available. Everything not established by a source above is marked `spec-needed`.
 
 [rfc8392]: https://www.rfc-editor.org/rfc/rfc8392
 [iana]: https://www.iana.org/assignments/cwt/

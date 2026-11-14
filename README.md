@@ -3,9 +3,9 @@
 *Working title.* A Go validator for the Common Access Token (CAT, CTA-5007), a CBOR Web Token format that CDNs use
 to decide whether a request may fetch content.
 
-**Status:** phase 0. No code yet. The validator is the vehicle; the real deliverable is the development process
-it is built with, written down in [docs/explanation/process.md](docs/explanation/process.md) so later projects can
-reuse it.
+**Status:** phase 0. No code yet. There are two deliverables of equal weight: a validator worth using, and the
+development process it is built with, written down in [docs/explanation/process.md](docs/explanation/process.md)
+so later projects can reuse it.
 
 - [docs/explanation/process.md](docs/explanation/process.md) explains how work happens here and why.
 - [docs/decisions/](docs/decisions/) holds one record per decision, proposed or accepted.
