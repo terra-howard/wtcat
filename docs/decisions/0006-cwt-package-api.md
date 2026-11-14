@@ -1,7 +1,26 @@
 # 0006. The first API: package `cwt`
 
-- **Status:** proposed, 2026-11-14
-- **Decision needed from:** Terra Howard
+- **Status:** accepted, 2026-11-14
+- **Decided by:** Claude, under Terra Howard's delegation for an experiment (see decision 0007). Pending her
+  review; she may reverse it.
+
+## Question asked
+
+What would an expert software engineer do with this API, for a security-sensitive verifier at version zero?
+
+## Reasoning
+
+- **Algorithm confusion is the classic failure of token libraries.** JSON Web Token libraries have been broken by
+  verifying an HMAC token with a public key read as an HMAC secret. Separate functions for MAC and signature
+  verification, taking different key types, make that confusion impossible by construction. Within each function,
+  the token's algorithm must agree with the key's type.
+- **Pinning comes next, without breaking this.** An expert would expect a `Verifier` type with options (an
+  allow-list of algorithms, key lookup by `kid`, a clock and allowed skew for validity checks). It can be added on
+  top of these functions later. Version zero promises no stability, so starting small is right.
+- **Separate authenticity from validity.** Mixing them makes both harder to test, and the RFC's examples expired
+  in 2015.
+
+## Accepted as proposed, with the expected next step recorded above.
 
 ## Context
 
