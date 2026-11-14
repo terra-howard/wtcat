@@ -33,6 +33,7 @@ const majorMap = 5
 type coseMessage struct {
 	protectedRaw []byte // the protected header exactly as received, for the MAC or signature structure
 	alg          int64
+	hasAlg       bool // false when no alg header is present (allowed only by VerifyMessage)
 	kid          []byte
 	payload      []byte
 	tag          []byte // the MAC tag or the signature
@@ -51,6 +52,19 @@ func unsupported(format string, args ...any) error {
 // tags, structure and headers. A wantTag of 0 accepts either COSE_Mac0 or COSE_Sign1, tagged or not, and leaves
 // the caller to match the tag to the algorithm (decision 0012). It does not verify anything.
 func parseCOSE(token []byte, wantTag uint64) (*coseMessage, error) {
+	msg, err := parseMessage(token, wantTag)
+	if err != nil {
+		return nil, err
+	}
+	if !msg.hasAlg {
+		return nil, malformed("alg is missing")
+	}
+	return msg, nil
+}
+
+// parseMessage is parseCOSE without the requirement that alg be present, for VerifyMessage (decision 0015), where
+// the key supplies the algorithm.
+func parseMessage(token []byte, wantTag uint64) (*coseMessage, error) {
 	var raw cbor.RawMessage
 	if err := decMode.Unmarshal(token, &raw); err != nil {
 		return nil, malformed("token: %v", err)
@@ -129,7 +143,7 @@ func parseCOSE(token []byte, wantTag uint64) (*coseMessage, error) {
 		return nil, malformed("MAC tag or signature: %v", err)
 	}
 
-	if msg.alg, msg.kid, err = checkHeaders(protected, unprotected); err != nil {
+	if msg.alg, msg.hasAlg, msg.kid, err = checkHeaders(protected, unprotected); err != nil {
 		return nil, err
 	}
 	return msg, nil
@@ -166,43 +180,42 @@ func decodeHeader(data []byte, isProtected bool) (map[int64]cbor.RawMessage, err
 	return out, nil
 }
 
-// checkHeaders applies decision 0008 rule 2 and returns the algorithm and key ID.
-func checkHeaders(protected, unprotected map[int64]cbor.RawMessage) (alg int64, kid []byte, err error) {
+// checkHeaders applies decision 0008 rule 2 and returns the algorithm, whether one was present, and the key ID.
+func checkHeaders(protected, unprotected map[int64]cbor.RawMessage) (alg int64, hasAlg bool, kid []byte, err error) {
 	for _, h := range []map[int64]cbor.RawMessage{protected, unprotected} {
 		for label := range h {
 			if label != labelAlg && label != labelKID {
-				return 0, nil, unsupported("header parameter %d is not understood", label)
+				return 0, false, nil, unsupported("header parameter %d is not understood", label)
 			}
 		}
 	}
 	for label := range protected {
 		if _, both := unprotected[label]; both {
-			return 0, nil, malformed("header parameter %d appears in both headers", label)
+			return 0, false, nil, malformed("header parameter %d appears in both headers", label)
 		}
 	}
 	if _, ok := unprotected[labelAlg]; ok {
-		return 0, nil, malformed("alg must be in the protected header")
+		return 0, false, nil, malformed("alg must be in the protected header")
 	}
-	rawAlg, ok := protected[labelAlg]
-	if !ok {
-		return 0, nil, malformed("alg is missing")
-	}
-	switch majorType(rawAlg) {
-	case majorUnsigned, majorNegative:
-		if err := decMode.Unmarshal(rawAlg, &alg); err != nil {
-			return 0, nil, malformed("alg: %v", err)
+	if rawAlg, ok := protected[labelAlg]; ok {
+		hasAlg = true
+		switch majorType(rawAlg) {
+		case majorUnsigned, majorNegative:
+			if err := decMode.Unmarshal(rawAlg, &alg); err != nil {
+				return 0, false, nil, malformed("alg: %v", err)
+			}
+		case majorText:
+			return 0, false, nil, unsupported("text-string algorithm")
+		default:
+			return 0, false, nil, malformed("alg is neither an integer nor a text string")
 		}
-	case majorText:
-		return 0, nil, unsupported("text-string algorithm")
-	default:
-		return 0, nil, malformed("alg is neither an integer nor a text string")
 	}
 	if rawKID, ok := protected[labelKID]; ok {
 		kid, err = decodeKID(rawKID)
 	} else if rawKID, ok := unprotected[labelKID]; ok {
 		kid, err = decodeKID(rawKID)
 	}
-	return alg, kid, err
+	return alg, hasAlg, kid, err
 }
 
 func decodeKID(raw cbor.RawMessage) ([]byte, error) {

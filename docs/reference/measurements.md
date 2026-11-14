@@ -94,4 +94,4 @@ Each prediction is committed before its task starts. *Outcome* states a checkabl
 
 | Task | Predicted rounds | Predicted time | Predicted outcome | Actual rounds | Actual time | Actual outcome |
 |---|---|---|---|---|---|---|
-| 14. `cwt.VerifyMessage` with keys bound to one algorithm (prediction committed at 18:51:55) | 1 | 8 min | all new tests pass on the first compiled run, about 70%; no existing test changes, about 95% | | | |
+| 14. `cwt.VerifyMessage` with keys bound to one algorithm (prediction committed at 18:51:55) | 1 | 8 min | all new tests pass on the first compiled run, about 70%; no existing test changes, about 95% | 0 | about 3 min (18:51:26 to 18:54:25) | both held: the new tests passed on the first compiled run, and no existing test changed. A 30 s fuzz of `VerifyMessage` ran 6,311,846 inputs with none failing. The prediction's own timestamp, 18:51:55, was typed instead of pasted from `date`; the commit that sealed it is 18:51:26 |
