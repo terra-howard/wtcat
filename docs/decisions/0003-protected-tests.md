@@ -43,6 +43,9 @@ RFC 8392 Appendix A's worked examples: the claims set must decode to the listed 
 encrypted examples must verify or decrypt with the listed keys. These were written by the RFC's authors, not by
 anyone on this project, which is the point.
 
+**Correction, 2026-11-14:** the set approved in decision 0007 covers A.1, A.3 and A.4. The encrypted example (A.5)
+waits for COSE_Encrypt0 support, which decision 0005 deferred; this paragraph promised more than was built.
+
 ## Consequences
 
 - One small Go tool to build and maintain.
