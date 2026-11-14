@@ -87,3 +87,11 @@ cannot succeed either way), and two boundaries of the claim-tag rule (the type c
 **The 22 not covered:** 18 are `switch` case expressions, which this tool reports as not covered even where a test
 demonstrably runs the branch; 4 are the negative algorithm constants, which the RFC and working group vectors
 exercise directly.
+
+## 2026-11-14 evening: decisions 0015 and 0016, and `cat` phase 1, under the delegation experiment
+
+Each prediction is committed before its task starts. *Outcome* states a checkable claim with a confidence.
+
+| Task | Predicted rounds | Predicted time | Predicted outcome | Actual rounds | Actual time | Actual outcome |
+|---|---|---|---|---|---|---|
+| 14. `cwt.VerifyMessage` with keys bound to one algorithm (prediction committed at 18:51:55) | 1 | 8 min | all new tests pass on the first compiled run, about 70%; no existing test changes, about 95% | | | |
