@@ -32,6 +32,10 @@ change through normal review.
 7. **Tests that pass without checking much.** Hashes catch edits. Mutation testing on the code the protected
    tests cover catches tests that were weak from the start. The tool is a later decision.
 8. **Until the remote exists,** the gate runs locally as a command, and later in CI on every commit.
+9. **Line endings.** This machine's Git converts LF to CRLF on checkout, and a hash of a CRLF file differs from a
+   hash of the same file with LF. The census hashes content with line endings normalised to LF, and a
+   `.gitattributes` with `* text=auto eol=lf` keeps working copies identical across platforms. Adding that file
+   is part of accepting this decision.
 
 ## First protected set
 
