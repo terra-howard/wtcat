@@ -11,8 +11,10 @@ There are two deliverables of equal weight: a validator worth using, and the dev
 so later projects can reuse it.
 
 - [docs/explanation/process.md](docs/explanation/process.md) explains how work happens here and why.
+- [docs/how-to/verify-a-token.md](docs/how-to/verify-a-token.md) shows how to verify a token with package `cwt`.
 - [docs/decisions/](docs/decisions/) holds one record per decision, proposed or accepted.
+- [docs/reference/measurements.md](docs/reference/measurements.md) records each task's prediction and outcome.
 - [AGENTS.md](AGENTS.md) is the steering file every coding agent reads first.
 
 Documentation follows [Diátaxis](https://diataxis.fr/): tutorials, how-to guides, reference and explanation, kept
-as separate pages. So far there is explanation and decision records.
+as separate pages. So far there is explanation, a how-to guide, reference and decision records.
