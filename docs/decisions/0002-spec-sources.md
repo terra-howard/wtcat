@@ -46,3 +46,7 @@ claim set if CTA-5007-B becomes available. Everything not established by a sourc
 [eyevinn]: https://github.com/Eyevinn/node-cat
 [catapult]: https://github.com/Quicr/catapult
 [ctawave]: https://github.com/cta-wave/common-access-token
+
+**Update, 2026-11-14:** the owner obtained CTA-5007-B the same day, so the full claim set can now be built against
+the real text. How it may be used in this public repository is decision 0014; where it changes earlier decisions is
+0015.
