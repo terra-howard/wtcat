@@ -14,7 +14,7 @@ Predictions committed at 15:22:33 EST, before any implementation.
 | Task | Predicted rounds | Predicted time | Predicted first verify | Actual rounds | Actual time | Actual first verify |
 |---|---|---|---|---|---|---|
 | 1. `DecodeClaims` and the claim rules of decision 0008 | 2 | 15 min | yes (A.1) | 0 | under 2 min (15:22:33 to 15:24:11) | yes |
-| 2. COSE envelope and header rules, `VerifyMac0` | 3 | 25 min | yes (A.4) | | | |
+| 2. COSE envelope and header rules, `VerifyMac0` | 3 | 25 min | yes (A.4) | 0 | about 4 min (15:24:11 to 15:28:38) | yes |
 | 3. `VerifySign1` with ES256 | 2 | 15 min | yes (A.3) | | | |
 
 Confidence, stated so it can be scored: first verify on A.4 at about 70%, since HMAC 256/64 truncation and the

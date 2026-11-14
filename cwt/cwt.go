@@ -38,8 +38,5 @@ var (
 	ErrNotImplemented = errors.New("cwt: not implemented")
 )
 
-// VerifyMac0 verifies a COSE_Mac0 CWT with a symmetric key and returns its claims.
-func VerifyMac0(token, key []byte) (*Claims, error) { return nil, ErrNotImplemented }
-
 // VerifySign1 verifies a COSE_Sign1 CWT with a public key and returns its claims.
 func VerifySign1(token []byte, key crypto.PublicKey) (*Claims, error) { return nil, ErrNotImplemented }
