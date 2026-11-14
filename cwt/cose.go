@@ -38,6 +38,7 @@ type coseMessage struct {
 	kid          []byte
 	payload      []byte
 	tag          []byte // the MAC tag or the signature
+	coseTag      uint64 // the COSE tag found (17 or 18), or 0 for an untagged message
 }
 
 func malformed(format string, args ...any) error {
@@ -49,13 +50,15 @@ func unsupported(format string, args ...any) error {
 }
 
 // parseCOSE parses a token that should be a COSE message with the given tag, applying decision 0008's rules for
-// tags, structure and headers. It does not verify anything.
+// tags, structure and headers. A wantTag of 0 accepts either COSE_Mac0 or COSE_Sign1, tagged or not, and leaves
+// the caller to match the tag to the algorithm (decision 0012). It does not verify anything.
 func parseCOSE(token []byte, wantTag uint64) (*coseMessage, error) {
 	var raw cbor.RawMessage
 	if err := decMode.Unmarshal(token, &raw); err != nil {
 		return nil, malformed("token: %v", err)
 	}
 	body := []byte(raw)
+	var foundTag uint64
 	if majorType(body) == majorTag {
 		var rt cbor.RawTag
 		if err := decMode.Unmarshal(body, &rt); err != nil {
@@ -70,9 +73,13 @@ func parseCOSE(token []byte, wantTag uint64) (*coseMessage, error) {
 				return nil, malformed("tag: %v", err)
 			}
 		}
-		if rt.Number != wantTag {
+		switch {
+		case wantTag != 0 && rt.Number != wantTag:
 			return nil, malformed("COSE tag %d where %d was expected", rt.Number, wantTag)
+		case wantTag == 0 && rt.Number != tagMac0 && rt.Number != tagSign1:
+			return nil, malformed("COSE tag %d is neither COSE_Mac0 nor COSE_Sign1", rt.Number)
 		}
+		foundTag = rt.Number
 		body = rt.Content
 	}
 
@@ -89,7 +96,7 @@ func parseCOSE(token []byte, wantTag uint64) (*coseMessage, error) {
 		}
 	}
 
-	msg := &coseMessage{}
+	msg := &coseMessage{coseTag: foundTag}
 	if majorType(parts[0]) != majorBytes {
 		return nil, malformed("protected header is not a byte string")
 	}
@@ -230,6 +237,14 @@ func verifyMac0Payload(token, key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := verifyMac0Message(msg, key); err != nil {
+		return nil, err
+	}
+	return msg.payload, nil
+}
+
+// verifyMac0Message checks a parsed COSE_Mac0 message's tag with a symmetric key.
+func verifyMac0Message(msg *coseMessage, key []byte) error {
 	var tagLen int
 	switch msg.alg {
 	case algHMAC256x64:
@@ -237,22 +252,22 @@ func verifyMac0Payload(token, key []byte) ([]byte, error) {
 	case algHMAC256x256:
 		tagLen = 32
 	default:
-		return nil, unsupported("algorithm %d for COSE_Mac0", msg.alg)
+		return unsupported("algorithm %d for COSE_Mac0", msg.alg)
 	}
 	if len(key) == 0 {
-		return nil, fmt.Errorf("%w: empty key", ErrVerification)
+		return fmt.Errorf("%w: empty key", ErrVerification)
 	}
 	toMac, err := macStructure(msg.protectedRaw, msg.payload)
 	if err != nil {
-		return nil, fmt.Errorf("building MAC structure: %w", err)
+		return fmt.Errorf("%w: building MAC structure: %v", ErrMalformed, err)
 	}
 	h := hmac.New(sha256.New, key)
 	h.Write(toMac)
 	want := h.Sum(nil)[:tagLen]
 	if len(msg.tag) != tagLen || !hmac.Equal(msg.tag, want) {
-		return nil, ErrVerification
+		return ErrVerification
 	}
-	return msg.payload, nil
+	return nil
 }
 
 // claimsFromPayload decodes a verified payload as a claims set, refusing nested CWTs (decision 0008, rule 3).

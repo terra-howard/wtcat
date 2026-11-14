@@ -23,23 +23,26 @@ func verifySign1Payload(token []byte, key crypto.PublicKey) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := verifySign1Message(msg, key); err != nil {
+		return nil, err
+	}
+	return msg.payload, nil
+}
+
+// verifySign1Message checks a parsed COSE_Sign1 message's signature with a public key.
+func verifySign1Message(msg *coseMessage, key crypto.PublicKey) error {
 	toBeSigned, err := sigStructure(msg.protectedRaw, msg.payload)
 	if err != nil {
-		return nil, fmt.Errorf("building signature structure: %w", err)
+		return fmt.Errorf("%w: building signature structure: %v", ErrMalformed, err)
 	}
 	switch msg.alg {
 	case algES256:
-		if err := verifyES256(key, toBeSigned, msg.tag); err != nil {
-			return nil, err
-		}
+		return verifyES256(key, toBeSigned, msg.tag)
 	case algPS256:
-		if err := verifyPS256(key, toBeSigned, msg.tag); err != nil {
-			return nil, err
-		}
+		return verifyPS256(key, toBeSigned, msg.tag)
 	default:
-		return nil, unsupported("algorithm %d for COSE_Sign1", msg.alg)
+		return unsupported("algorithm %d for COSE_Sign1", msg.alg)
 	}
-	return msg.payload, nil
 }
 
 // verifyES256 checks an ECDSA P-256 SHA-256 signature in COSE's fixed-length r||s form (RFC 9053 Section 2.1).

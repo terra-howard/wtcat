@@ -4,7 +4,8 @@
 to decide whether a request may fetch content.
 
 **Status:** phase 1. Package `cwt` decodes CBOR Web Tokens and verifies COSE_Mac0 (HMAC 256/64 and 256/256) and
-COSE_Sign1 (ES256 and PS256). The census gate is green. CAT's own claims come next.
+COSE_Sign1 (ES256 and PS256), checks the validity window, and offers a `Verifier` with an algorithm allow-list,
+key lookup by `kid` and a clock. The parsers are fuzzed. The census gate is green. CAT's own claims come next.
 
 There are two deliverables of equal weight: a validator worth using, and the development process it is built with, written down in [docs/explanation/process.md](docs/explanation/process.md)
 so later projects can reuse it.
