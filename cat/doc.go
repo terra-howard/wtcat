@@ -12,10 +12,11 @@
 //	exp (4)     the current time must be before it, with no leeway
 //	nbf (5)     the current time must not be before it, with no leeway
 //	catv (310)  must be 1
+//	catm (313)  must list the request's method, case-sensitively (needs ValidateRequest)
 //
 // It decodes and type-checks sub (2), iat (6) and cti (7), which are informational here. It refuses, as
 // unsupported, any token carrying a claim CTA-5007-B requires recipients to enforce that this version does not
-// enforce yet: cnf (8), catnip (311), catu (312), catm (313), cath (315) and catdpop (321). Every other claim is
+// enforce yet: cnf (8), catnip (311), catu (312), cath (315) and catdpop (321). Every other claim is
 // ignored, as section 4.5 requires of claims a recipient does not support, including the optional catreplay,
 // catpor, catalpn, the geographic claims, cattpk, catifdata, catif and catr.
 //
@@ -28,6 +29,7 @@
 // the matching _internal_test.go file.
 //
 //	validator.go      Validator, Key, Token and the acceptance errors
+//	request.go        Request, ValidateRequest and the request claims (decision 0017)
 //	decode.go         the token's text form: strict base64url and the length limit
 //	deterministic.go  the deterministic-encoding check of section 4.5
 //	claims.go         Claims and the claim-set decoder: core claims, catv, tag rules, claims not yet enforced

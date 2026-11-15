@@ -59,7 +59,9 @@ type Token struct {
 // Acceptable means iss names the key's issuer, aud names this recipient, and the current time is before exp and
 // not before nbf, with no leeway. Absent claims are not checked. Claims this version does not support are
 // ignored, as section 4.5 requires; the package documentation lists those it enforces.
-func (v *Validator) Validate(token string) (*Token, error) {
+func (v *Validator) Validate(token string) (*Token, error) { return v.validate(token, nil) }
+
+func (v *Validator) validate(token string, req *Request) (*Token, error) {
 	if v.Keys == nil {
 		return nil, errors.New("cat: Validator has no key function")
 	}
@@ -116,6 +118,9 @@ func (v *Validator) Validate(token string) (*Token, error) {
 	}
 	if claims.NotBefore != nil && claims.NotBefore.compare(t) < 0 {
 		return nil, ErrNotYetValid
+	}
+	if err := checkRequest(claims, req); err != nil {
+		return nil, err
 	}
 	return &Token{Algorithm: msg.Algorithm, KID: msg.KID, Claims: *claims}, nil
 }

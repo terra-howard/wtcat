@@ -60,7 +60,7 @@ func TestDecodeClaimsShapes(t *testing.T) {
 			t.Fatal(err)
 		}
 		if c.Issuer != nil || c.Subject != nil || c.Audience != nil || c.Expiry != nil || c.NotBefore != nil ||
-			c.IssuedAt != nil || c.CWTID != nil || c.Version != 1 {
+			c.IssuedAt != nil || c.CWTID != nil || c.Version != 1 || c.Methods != nil {
 			t.Errorf("claims = %+v, want every claim absent and Version 1", c)
 		}
 	})
@@ -89,6 +89,15 @@ func TestDecodeClaimsShapes(t *testing.T) {
 		}
 		if c.CWTID == nil || len(c.CWTID) != 0 {
 			t.Errorf("CWTID = %#v, want a non-nil empty slice", c.CWTID)
+		}
+	})
+	t.Run("catm", func(t *testing.T) {
+		c, err := decodeClaims(enc(t, map[int64]any{313: []string{"GET", "HEAD"}}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(c.Methods) != 2 || c.Methods[0] != "GET" || c.Methods[1] != "HEAD" {
+			t.Errorf("Methods = %q", c.Methods)
 		}
 	})
 	t.Run("catv 1", func(t *testing.T) {
@@ -197,6 +206,11 @@ func TestDecodeClaimsRejectsMalformed(t *testing.T) {
 		{"catv text", enc(t, map[int64]any{310: "1"})},
 		{"catv negative", enc(t, map[int64]any{310: -1})},
 		{"catv tagged", enc(t, map[int64]any{310: raw(t, "d903e801")})},
+		{"catm not an array", enc(t, map[int64]any{313: "GET"})},
+		{"catm empty", enc(t, map[int64]any{313: []string{}})},
+		{"catm holding a non-string", enc(t, map[int64]any{313: []any{"GET", 1}})},
+		{"catm holding a tagged string", enc(t, map[int64]any{313: []any{raw(t, "d903e863474554")}})},
+		{"catm tagged", enc(t, map[int64]any{313: raw(t, "d9010281634745 54")})},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -221,7 +235,6 @@ func TestDecodeClaimsRefusesUnsupported(t *testing.T) {
 		{"cnf, not yet enforced", enc(t, map[int64]any{8: map[int64]any{}})},
 		{"catnip, not yet enforced", enc(t, map[int64]any{311: []any{}})},
 		{"catu, not yet enforced", enc(t, map[int64]any{312: map[int64]any{}})},
-		{"catm, not yet enforced", enc(t, map[int64]any{313: []any{}})},
 		{"cath, not yet enforced", enc(t, map[int64]any{315: map[int64]any{}})},
 		{"catdpop, not yet enforced", enc(t, map[int64]any{321: map[int64]any{}})},
 	}

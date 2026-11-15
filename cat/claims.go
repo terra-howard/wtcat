@@ -20,6 +20,7 @@ type Claims struct {
 	IssuedAt  *NumericDate // iat (6); informational, never checked (section 4.7.2)
 	CWTID     []byte       // cti (7); an empty byte string is a non-nil empty slice
 	Version   uint64       // catv (310); 1 when absent (section 4.6.8)
+	Methods   []string     // catm (313): the methods the token may be used with
 }
 
 // Claim keys this package knows (section 4.5 and RFC 8392).
@@ -32,6 +33,7 @@ const (
 	claimIat  = 6
 	claimCti  = 7
 	claimCatv = 310
+	claimCatm = 313
 )
 
 // notYetEnforced lists the claims a recipient must support (section 4.5) that phase 1 does not enforce yet. A token
@@ -40,7 +42,6 @@ var notYetEnforced = map[int64]string{
 	8:   "cnf",
 	311: "catnip",
 	312: "catu",
-	313: "catm",
 	315: "cath",
 	321: "catdpop",
 }
@@ -121,7 +122,7 @@ func decodeClaims(payload []byte) (*Claims, error) {
 // decodeClaim decodes one claim value into c if the key is one this package knows.
 func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	switch key {
-	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv:
+	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm:
 	default:
 		return nil
 	}
@@ -150,6 +151,8 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 			return malformed("claim 7 (cti) is not a byte string")
 		}
 		err = decMode.Unmarshal(value, &c.CWTID)
+	case claimCatm:
+		c.Methods, err = textArray(value, key)
 	case claimCatv:
 		if majorType(value) != majorUnsigned {
 			return malformed("claim 310 (catv) is not an unsigned integer")
@@ -244,4 +247,27 @@ func decodeDate(value cbor.RawMessage, key int64) (*NumericDate, error) {
 	default:
 		return nil, malformed("claim %d is not a date", key)
 	}
+}
+
+// textArray decodes an array of at least one untagged text string, the shape of catm (section 4.6.11).
+func textArray(value cbor.RawMessage, key int64) ([]string, error) {
+	if majorType(value) != majorArray {
+		return nil, malformed("claim %d is not an array", key)
+	}
+	var items []cbor.RawMessage
+	if err := decMode.Unmarshal(value, &items); err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return nil, malformed("claim %d is an empty array", key)
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		s, err := textClaim(item, key)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *s)
+	}
+	return out, nil
 }
