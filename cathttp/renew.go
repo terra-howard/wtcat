@@ -3,7 +3,6 @@ package cathttp
 import (
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/terra-howard/wtcat/cat"
 )
@@ -16,11 +15,7 @@ func (a *Authorizer) planRenewal(r *http.Request, tok *cat.Token, loc Located, o
 	if a.Validator.Issuance == nil {
 		return "", 0, nil
 	}
-	now := time.Now
-	if a.Validator.Now != nil {
-		now = a.Validator.Now
-	}
-	ren, err := a.Validator.Renew(tok, now())
+	ren, err := a.Validator.Renew(tok, a.now())
 	if err != nil || ren == nil {
 		return "", 0, nil
 	}

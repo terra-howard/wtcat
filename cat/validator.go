@@ -112,11 +112,23 @@ func (v *Validator) validate(token string, req *Request) (*Token, error) {
 		return nil, err
 	}
 
+	tok := &Token{Algorithm: msg.Algorithm, KID: msg.KID, Claims: *claims, payload: msg.Payload}
+	if err := v.accept(&tok.Claims, issuer, req, token); err != nil {
+		if key, ok := refusingClaim(err); ok {
+			return nil, &Unacceptable{Token: tok, Claim: key, Err: err}
+		}
+		return nil, err
+	}
+	return tok, nil
+}
+
+// accept checks that a valid token's claims are acceptable for this request, now.
+func (v *Validator) accept(claims *Claims, issuer string, req *Request, token string) error {
 	if claims.Issuer != nil && (issuer == "" || *claims.Issuer != issuer) {
-		return nil, ErrIssuer
+		return ErrIssuer
 	}
 	if claims.Audience != nil && !slices.ContainsFunc(claims.Audience, func(a string) bool { return slices.Contains(v.Audiences, a) }) {
-		return nil, ErrAudience
+		return ErrAudience
 	}
 	now := time.Now
 	if v.Now != nil {
@@ -124,26 +136,26 @@ func (v *Validator) validate(token string, req *Request) (*Token, error) {
 	}
 	t := now()
 	if claims.Expiry != nil && claims.Expiry.Compare(t) >= 0 {
-		return nil, ErrExpired
+		return ErrExpired
 	}
 	if claims.NotBefore != nil && claims.NotBefore.Compare(t) < 0 {
-		return nil, ErrNotYetValid
+		return ErrNotYetValid
 	}
 	if err := checkRequest(claims, req); err != nil {
-		return nil, err
+		return err
 	}
 	if err := v.checkConfirmation(claims, req, token, t); err != nil {
-		return nil, err
+		return err
 	}
 	if err := checkLocation(claims, req); err != nil {
-		return nil, err
+		return err
 	}
 	if err := checkConnection(claims, req); err != nil {
-		return nil, err
+		return err
 	}
 	// Last, so that a refused token never uses up its cti. Values above 2 are undefined and treated as 1.
 	if claims.replay != nil && *claims.replay != 0 && claims.CWTID != nil && v.Replay != nil && v.Replay(claims.CWTID) {
-		return nil, ErrReplay
+		return ErrReplay
 	}
-	return &Token{Algorithm: msg.Algorithm, KID: msg.KID, Claims: *claims, payload: msg.Payload}, nil
+	return nil
 }

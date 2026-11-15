@@ -26,8 +26,9 @@
 // requires recipients to support is enforced; a cnf with a confirmation method other than jkt is refused as
 // unsupported. Every other claim is
 // ignored, as section 4.5 requires of claims a recipient does not support, including the optional catpor,
-// catgeocoord, geohash, catgeoalt, catifdata and catif, and catreplay, catgeoiso3166, catalpn, cattpk and catr
-// when the caller does not supply what they need. catr is followed through Validator.Renew when Issuance is set.
+// catgeocoord, geohash, catgeoalt and catifdata, and catreplay, catgeoiso3166, catalpn, cattpk and catr when the
+// caller does not supply what they need. catr is followed through Validator.Renew when Issuance is set, and catif
+// through Validator.IfResponse for a refusal that is a *Unacceptable.
 //
 // Algorithms: HMAC 256/64, HMAC 256/256, ES256 and PS256, in COSE_Mac0 or COSE_Sign1, each key bound to one of
 // them. Encrypted tokens and messages with more than one signer or recipient are not supported.
@@ -49,6 +50,7 @@
 // the matching _internal_test.go file.
 //
 //	validator.go      Validator, Key, Token and the acceptance errors
+//	catif.go          catif: Unacceptable and Validator.IfResponse (decision 0022)
 //	renew.go          catr: Validator.Renew, Issuance and Renewal (decision 0022)
 //	request.go        Request, ValidateRequest and the request claims (decision 0017)
 //	match.go          the match types of section 4.6.10, used by cath and catu, and the POSIX regex checks

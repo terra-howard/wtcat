@@ -267,3 +267,15 @@ func TestAuthorizeReadsTheConnection(t *testing.T) {
 		t.Fatalf("with a Connection option, as behind a proxy: %v", err)
 	}
 }
+
+// A refused token whose catif asks for a response gets it, instead of 401 (section 4.9.1).
+func TestMiddlewareAnswersWithCatif(t *testing.T) {
+	called := false
+	h := authorizer().Middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
+	tok := token(t, map[any]any{4: past, 322: map[int64]any{4: []any{307, map[string]any{"Location": "https://auth.example/"}}}})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, request("https://example.com/x?CAT="+tok, nil))
+	if called || rec.Code != 307 || rec.Header().Get("Location") != "https://auth.example/" || !strings.Contains(rec.Header().Get("Cache-Control"), "private") {
+		t.Fatalf("handler called %v, status %d, Location %q, Cache-Control %q", called, rec.Code, rec.Header().Get("Location"), rec.Header().Get("Cache-Control"))
+	}
+}

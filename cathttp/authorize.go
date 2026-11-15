@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strings"
+	"time"
 
 	"github.com/terra-howard/wtcat/cat"
 )
@@ -41,22 +42,23 @@ type Authorizer struct {
 // Authorize returns the first acceptable token in the request. If none is acceptable, the error is that of the
 // first valid but unacceptable token, or else of the first token, so that its kind can be tested with errors.Is.
 func (a *Authorizer) Authorize(r *http.Request) (*cat.Token, error) {
-	tok, _, err := a.authorize(r)
+	tok, _, _, err := a.authorize(r)
 	return tok, err
 }
 
-// authorize is Authorize, also returning where the accepted token was found.
-func (a *Authorizer) authorize(r *http.Request) (*cat.Token, Located, error) {
+// authorize is Authorize, also returning where the accepted token was found, and the request the returned token or
+// error was judged with.
+func (a *Authorizer) authorize(r *http.Request) (*cat.Token, Located, *cat.Request, error) {
 	limit, err := a.limit()
 	if err != nil {
-		return nil, Located{}, err
+		return nil, Located{}, nil, err
 	}
 	tokens, err := Find(r, a.Options)
 	if err != nil {
-		return nil, Located{}, err
+		return nil, Located{}, nil, err
 	}
 	if len(tokens) == 0 {
-		return nil, Located{}, ErrNoToken
+		return nil, Located{}, nil, ErrNoToken
 	}
 	if len(tokens) > limit {
 		tokens = tokens[:limit] // section 4.4 lets a recipient treat the rest as absent
@@ -68,6 +70,7 @@ func (a *Authorizer) authorize(r *http.Request) (*cat.Token, Located, error) {
 		asn = a.ClientASN(ip)
 	}
 	var firstErr, firstUnacceptable error
+	var firstReq, unacceptableReq *cat.Request
 	for _, t := range tokens {
 		req := &cat.Request{
 			Method: r.Method, URI: a.absolute(r, RemoveFromURI(target, t)), Header: r.Header, ClientIP: ip, ClientASN: asn,
@@ -75,19 +78,19 @@ func (a *Authorizer) authorize(r *http.Request) (*cat.Token, Located, error) {
 		}
 		tok, err := a.Validator.ValidateRequest(t.Text, req)
 		if err == nil {
-			return tok, t, nil
+			return tok, t, req, nil
 		}
 		if firstErr == nil {
-			firstErr = err
+			firstErr, firstReq = err, req
 		}
 		if firstUnacceptable == nil && errors.Is(err, cat.ErrUnacceptable) {
-			firstUnacceptable = err
+			firstUnacceptable, unacceptableReq = err, req
 		}
 	}
 	if firstUnacceptable != nil {
-		return nil, Located{}, firstUnacceptable
+		return nil, Located{}, unacceptableReq, firstUnacceptable
 	}
-	return nil, Located{}, firstErr
+	return nil, Located{}, firstReq, firstErr
 }
 
 func (a *Authorizer) limit() (int, error) {
@@ -115,6 +118,14 @@ func (a *Authorizer) absolute(r *http.Request, target string) string {
 		scheme = a.Scheme
 	}
 	return scheme + "://" + r.Host + target
+}
+
+// now is the Validator's clock, or the real one.
+func (a *Authorizer) now() time.Time {
+	if a.Validator.Now != nil {
+		return a.Validator.Now()
+	}
+	return time.Now()
 }
 
 // connection reads the request's TLS state, unless the Connection option replaces it.
@@ -154,13 +165,23 @@ func (a *Authorizer) Middleware(next http.Handler) http.Handler {
 	}
 	opts := a.Options.withDefaults()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tok, loc, err := a.authorize(r)
+		tok, loc, judged, err := a.authorize(r)
 		if errors.Is(err, ErrNoToken) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 		pw := &privateWriter{ResponseWriter: w}
 		if err != nil {
+			var u *cat.Unacceptable
+			if errors.As(err, &u) {
+				if resp := a.Validator.IfResponse(u, judged, a.now()); resp != nil { // section 4.9.1
+					for name, values := range resp.Header {
+						pw.Header()[name] = values
+					}
+					pw.WriteHeader(resp.Status)
+					return
+				}
+			}
 			http.Error(pw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}

@@ -69,7 +69,11 @@ func checkConnection(c *Claims, req *Request) error {
 	}
 	conn := req.Connection
 	if !conn.TLS {
-		return fmt.Errorf("%w: the request was not made over TLS", ErrConnection)
+		key := int64(claimCatalpn)
+		if c.alpns == nil {
+			key = claimCattpk
+		}
+		return &keyedError{key, fmt.Errorf("%w: the request was not made over TLS", ErrConnection)}
 	}
 	if c.alpns != nil {
 		listed := false
@@ -77,7 +81,7 @@ func checkConnection(c *Claims, req *Request) error {
 			listed = listed || conn.ALPN != "" && bytes.Equal(a, []byte(conn.ALPN))
 		}
 		if !listed {
-			return fmt.Errorf("%w: ALPN %q is not listed", ErrConnection, conn.ALPN)
+			return &keyedError{claimCatalpn, fmt.Errorf("%w: ALPN %q is not listed", ErrConnection, conn.ALPN)}
 		}
 	}
 	if c.tpk != nil {
@@ -86,7 +90,7 @@ func checkConnection(c *Claims, req *Request) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("%w: no client certificate has the cattpk key", ErrConnection)
+		return &keyedError{claimCattpk, fmt.Errorf("%w: no client certificate has the cattpk key", ErrConnection)}
 	}
 	return nil
 }

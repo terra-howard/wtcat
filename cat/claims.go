@@ -38,6 +38,7 @@ type Claims struct {
 	alpns      [][]byte        // catalpn (314); nil when absent
 	tpk        []byte          // cattpk (319); nil when absent
 	catr       cbor.RawMessage // catr (323) as received, parsed only when renewal is attempted (decision 0022)
+	catif      cbor.RawMessage // catif (322) as received, parsed only for a response to a refusal
 }
 
 // componentMatch is one member of a catu claim: a URI component (0 to 8) and its match.
@@ -95,6 +96,7 @@ const (
 	majorBytes    = 2
 	majorText     = 3
 	majorArray    = 4
+	majorMap      = 5
 	majorTag      = 6
 	majorSimple   = 7
 )
@@ -151,7 +153,7 @@ func decodeClaims(payload []byte) (*Claims, error) {
 // decodeClaim decodes one claim value into c if the key is one this package knows.
 func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	switch key {
-	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu, claimCatnip, claimCnf, claimCatdpop, claimCatreplay, claimCatgeoiso3166, claimCatalpn, claimCattpk, claimCatr:
+	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu, claimCatnip, claimCnf, claimCatdpop, claimCatreplay, claimCatgeoiso3166, claimCatalpn, claimCattpk, claimCatr, claimCatif:
 	default:
 		return nil
 	}
@@ -190,6 +192,8 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 		c.network, err = decodeCatnip(value)
 	case claimCatr:
 		c.catr = value
+	case claimCatif:
+		c.catif = value
 	case claimCatalpn:
 		c.alpns, err = decodeALPNs(value)
 	case claimCattpk:
