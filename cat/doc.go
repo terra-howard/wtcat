@@ -47,6 +47,7 @@
 //	match.go          the match types of section 4.6.10, used by cath and catu, and the POSIX regex checks
 //	uri.go            request URI normalization and the nine catu components
 //	network.go        catnip: ASNs and RFC 9164 prefixes
+//	dpop.go           DPoP proofs: compact JWS with ES256 or PS256, keys from jwk, RFC 7638 thumbprints (decision 0020)
 //	decode.go         the token's text form: strict base64url and the length limit
 //	deterministic.go  the deterministic-encoding check of section 4.5
 //	claims.go         Claims and the claim-set decoder: core claims, catv, tag rules, claims not yet enforced
