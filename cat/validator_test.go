@@ -247,3 +247,29 @@ func FuzzValidate(f *testing.F) {
 		t.Fatalf("unclassified error: %v", err)
 	})
 }
+
+// Tokens issued by cwt.Issue pass every check, deterministic encoding included (decision 0022).
+func TestValidateAcceptsTokensIssuedByCwt(t *testing.T) {
+	ec, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := enc(t, map[any]any{1: "issuer", 4: 1700000060.5, 7: []byte{1}})
+	for _, tc := range []struct {
+		sign   cwt.SigningKey
+		verify cwt.Key
+	}{
+		{cwt.SigningKey{Algorithm: cwt.HMAC256x256, KID: []byte("k1"), Material: hmacSecret}, cwt.Key{Algorithm: cwt.HMAC256x256, Material: hmacSecret}},
+		{cwt.SigningKey{Algorithm: cwt.ES256, Material: ec}, cwt.Key{Algorithm: cwt.ES256, Material: &ec.PublicKey}},
+	} {
+		raw, err := cwt.Issue(payload, tc.sign)
+		if err != nil {
+			t.Fatal(err)
+		}
+		v := validator()
+		v.Keys = func([]byte) (cat.Key, error) { return cat.Key{Key: tc.verify, Issuer: "issuer"}, nil }
+		if _, err := v.Validate(base64.RawURLEncoding.EncodeToString(raw)); err != nil {
+			t.Errorf("algorithm %d: %v", tc.sign.Algorithm, err)
+		}
+	}
+}

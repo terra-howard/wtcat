@@ -14,6 +14,7 @@
 //	date.go      NumericDate, exact for integer and floating-point dates (decision 0016); package cat uses it too
 //	verifier.go  Verifier
 //	message.go   VerifyMessage, Key and Message: keys bound to one algorithm, alg optional (decision 0015)
+//	issue.go     Issue and SigningKey: issuing COSE_Mac0 and COSE_Sign1 tokens (decision 0022)
 //
 //	helpers_test.go           helpers and the RFC 8392 Appendix A values shared by the external tests
 //	vectors_internal_test.go  helpers for the COSE working group vectors in testdata/cose-wg
