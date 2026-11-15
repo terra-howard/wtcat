@@ -50,6 +50,8 @@ type Validator struct {
 	// Replay, if set, records a cti and reports whether it had been seen before, for catreplay (decision 0021). It
 	// is called only for tokens that pass every other check and whose catreplay is not 0.
 	Replay func(cti []byte) (seen bool)
+	// Issuance, if set, lets the Validator issue tokens: renewals under catr (decision 0022). Nil turns issuing off.
+	Issuance *Issuance
 }
 
 // Token is a CAT that is valid and acceptable.
@@ -57,6 +59,7 @@ type Token struct {
 	Algorithm cwt.Algorithm
 	KID       []byte
 	Claims    Claims
+	payload   []byte // the claim set as received, for renewal
 }
 
 // Validate checks that a token, in its text form, is valid and acceptable to this recipient now, and returns it.
@@ -142,5 +145,5 @@ func (v *Validator) validate(token string, req *Request) (*Token, error) {
 	if claims.replay != nil && *claims.replay != 0 && claims.CWTID != nil && v.Replay != nil && v.Replay(claims.CWTID) {
 		return nil, ErrReplay
 	}
-	return &Token{Algorithm: msg.Algorithm, KID: msg.KID, Claims: *claims}, nil
+	return &Token{Algorithm: msg.Algorithm, KID: msg.KID, Claims: *claims, payload: msg.Payload}, nil
 }
