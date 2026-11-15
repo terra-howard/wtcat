@@ -18,12 +18,13 @@
 //	catnip (311) the client's address must lie in a listed prefix, or its ASN be listed (needs ValidateRequest)
 //	cnf (8)     with jkt: the request's DPoP proof must be made with that key and match the request (needs ValidateRequest)
 //	catdpop (321) sets the proof's window; crit is honoured; jti never causes a refusal (decision 0020)
+//	catreplay (308) with Validator.Replay set: 1 or 2 refuses a cti seen before; 0 never refuses (decision 0021)
 //
 // It decodes and type-checks sub (2), iat (6) and cti (7), which are informational here. Every claim CTA-5007-B
 // requires recipients to support is enforced; a cnf with a confirmation method other than jkt is refused as
 // unsupported. Every other claim is
-// ignored, as section 4.5 requires of claims a recipient does not support, including the optional catreplay,
-// catpor, catalpn, the geographic claims, cattpk, catifdata, catif and catr.
+// ignored, as section 4.5 requires of claims a recipient does not support, including the optional catpor,
+// catalpn, the geographic claims, cattpk, catifdata, catif and catr, and catreplay when Replay is not set.
 //
 // Algorithms: HMAC 256/64, HMAC 256/256, ES256 and PS256, in COSE_Mac0 or COSE_Sign1, each key bound to one of
 // them. Encrypted tokens and messages with more than one signer or recipient are not supported.

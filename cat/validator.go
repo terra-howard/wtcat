@@ -17,6 +17,7 @@ var (
 	ErrNotYetValid  = fmt.Errorf("%w: not yet valid", ErrUnacceptable)
 	ErrIssuer       = fmt.Errorf("%w: iss is not the issuer of the key that verified the token", ErrUnacceptable)
 	ErrAudience     = fmt.Errorf("%w: aud does not name this recipient", ErrUnacceptable)
+	ErrReplay       = fmt.Errorf("%w: catreplay forbids reuse, and the cti was seen before", ErrUnacceptable)
 )
 
 // Token length limits (section 4.3.1.1).
@@ -46,6 +47,9 @@ type Validator struct {
 	// DPoPWindow is how far the iat of a DPoP proof may be from now, either way, when catdpop sets no window;
 	// 0 means DefaultDPoPWindow (decision 0020).
 	DPoPWindow time.Duration
+	// Replay, if set, records a cti and reports whether it had been seen before, for catreplay (decision 0021). It
+	// is called only for tokens that pass every other check and whose catreplay is not 0.
+	Replay func(cti []byte) (seen bool)
 }
 
 // Token is a CAT that is valid and acceptable.
@@ -127,6 +131,10 @@ func (v *Validator) validate(token string, req *Request) (*Token, error) {
 	}
 	if err := v.checkConfirmation(claims, req, token, t); err != nil {
 		return nil, err
+	}
+	// Last, so that a refused token never uses up its cti. Values above 2 are undefined and treated as 1.
+	if claims.replay != nil && *claims.replay != 0 && claims.CWTID != nil && v.Replay != nil && v.Replay(claims.CWTID) {
+		return nil, ErrReplay
 	}
 	return &Token{Algorithm: msg.Algorithm, KID: msg.KID, Claims: *claims}, nil
 }
