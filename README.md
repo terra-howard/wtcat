@@ -7,8 +7,9 @@ to decide whether a request may fetch content.
 CBOR Web Tokens and verifies COSE_Mac0 (HMAC 256/64 and 256/256) and COSE_Sign1 (ES256 and PS256), with a
 `Verifier` and, for profiles such as CAT, `VerifyMessage` with keys bound to one algorithm. Package `cat` validates
 Common Access Tokens: strict base64url, deterministic encoding, `iss`, `aud`, `exp` and `nbf` with no leeway, and
-`catv`, and, given the request, `catm`, `cath`, `catu` and `catnip`. It refuses tokens carrying `cnf` or `catdpop`,
-which CTA-5007-B requires recipients to enforce and which need DPoP, not built yet, rather than ignoring them. The full list of
+`catv`, and, given the request, `catm`, `cath`, `catu`, `catnip`, and `cnf` with `catdpop`, checking the request's DPoP
+proof (RFC 9449) with a narrow verifier of its own. Every claim CTA-5007-B requires recipients to support is
+enforced; optional claims are ignored, as the specification allows. The full list of
 supported claims is in the package documentation. The parsers are fuzzed. The census gate is green.
 
 Package `cathttp` finds tokens in HTTP requests as section 4.4 orders them, removes each from the URI before `catu`,

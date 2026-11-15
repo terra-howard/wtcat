@@ -43,6 +43,9 @@ type Validator struct {
 	Audiences []string         // the names this recipient answers to; a token's aud must name one of them
 	Now       func() time.Time // optional; time.Now when nil
 	MaxLength int              // the longest token text accepted, in bytes; 0 means DefaultMaxLength, else at least MinLength
+	// DPoPWindow is how far the iat of a DPoP proof may be from now, either way, when catdpop sets no window;
+	// 0 means DefaultDPoPWindow (decision 0020).
+	DPoPWindow time.Duration
 }
 
 // Token is a CAT that is valid and acceptable.
@@ -120,6 +123,9 @@ func (v *Validator) validate(token string, req *Request) (*Token, error) {
 		return nil, ErrNotYetValid
 	}
 	if err := checkRequest(claims, req); err != nil {
+		return nil, err
+	}
+	if err := v.checkConfirmation(claims, req, token, t); err != nil {
 		return nil, err
 	}
 	return &Token{Algorithm: msg.Algorithm, KID: msg.KID, Claims: *claims}, nil

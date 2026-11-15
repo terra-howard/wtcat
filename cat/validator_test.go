@@ -177,7 +177,7 @@ func TestValidateRejectsInvalidTokens(t *testing.T) {
 		{"an indefinite-length claim set", mac0{payload: fromHex(t, "bf 04 1a6553f13c ff")}.text(t), cwt.ErrMalformed},
 		{"a MAC that does not verify", b64(tampered), cwt.ErrVerification},
 		{"an unknown kid", mac0{kid: []byte("k2"), payload: enc(t, map[any]any{})}.text(t), cwt.ErrVerification},
-		{"cnf, not yet enforced", claimsToken(t, map[any]any{8: map[any]any{}}), cwt.ErrUnsupported},
+		{"cnf without jkt", claimsToken(t, map[any]any{8: map[any]any{}}), cwt.ErrUnsupported},
 		{"catv 2", claimsToken(t, map[any]any{310: 2}), cwt.ErrUnsupported},
 		{"a tagged claim", mac0{payload: fromHex(t, "a1 01 c0 6161")}.text(t), cwt.ErrMalformed},
 	}

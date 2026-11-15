@@ -14,6 +14,7 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"time"
 )
 
 // proof is a DPoP proof (RFC 9449) whose signature verified with the key in its own header (decision 0020).
@@ -215,4 +216,63 @@ func thumbprint(jwk map[string]json.RawMessage) ([]byte, error) {
 	b.WriteByte('}')
 	sum := sha256.Sum256(b.Bytes())
 	return sum[:], nil
+}
+
+// ErrProof means the DPoP proof a cnf claim requires is missing or fails a check of decision 0020, or a token in
+// the DPoP authorization scheme is not bound by cnf.
+var ErrProof = fmt.Errorf("%w: no DPoP proof satisfies cnf", ErrUnacceptable)
+
+// DefaultDPoPWindow is the proof window when neither catdpop nor the Validator sets one.
+const DefaultDPoPWindow = 60 * time.Second
+
+// checkConfirmation checks the jkt of a cnf claim against the DPoP proof of the request (RFC 9449 Section 4.3,
+// decision 0020).
+func (v *Validator) checkConfirmation(c *Claims, req *Request, token string, now time.Time) error {
+	if c.jkt == nil {
+		if req != nil && req.ViaDPoPScheme {
+			return fmt.Errorf("%w: the token arrived in the DPoP scheme but has no cnf jkt", ErrProof)
+		}
+		return nil
+	}
+	values := req.Header.Values("DPoP")
+	if len(values) != 1 {
+		return fmt.Errorf("%w: %d DPoP fields, want exactly 1", ErrProof, len(values))
+	}
+	p, err := parseProof(values[0])
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrProof, err)
+	}
+	if !bytes.Equal(p.jkt, c.jkt) {
+		return fmt.Errorf("%w: the key of the proof is not the one cnf names", ErrProof)
+	}
+	if p.htm != req.Method {
+		return fmt.Errorf("%w: htm %q, request method %q", ErrProof, p.htm, req.Method)
+	}
+	received := req.ReceivedURI
+	if received == "" {
+		received = req.URI
+	}
+	got, err1 := normalizeURI(p.htu)
+	want, err2 := normalizeURI(received)
+	got.query, want.query = "", ""
+	if err1 != nil || err2 != nil || got != want {
+		return fmt.Errorf("%w: htu does not match the request URI", ErrProof)
+	}
+	window := v.DPoPWindow
+	if window == 0 {
+		window = DefaultDPoPWindow
+	}
+	if c.dpopWindow != nil {
+		window = time.Duration(min(*c.dpopWindow, uint64(math.MaxInt64/int64(time.Second)))) * time.Second
+	}
+	if age := float64(now.UnixNano())/1e9 - p.iat; math.IsNaN(age) || math.Abs(age) > window.Seconds() {
+		return fmt.Errorf("%w: iat is outside the %v window", ErrProof, window)
+	}
+	if req.ViaDPoPScheme || p.hasAth {
+		sum := sha256.Sum256([]byte(token))
+		if !p.hasAth || p.ath != base64.RawURLEncoding.EncodeToString(sum[:]) {
+			return fmt.Errorf("%w: ath does not match the token", ErrProof)
+		}
+	}
+	return nil
 }

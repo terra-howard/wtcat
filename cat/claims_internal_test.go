@@ -100,6 +100,15 @@ func TestDecodeClaimsShapes(t *testing.T) {
 			t.Errorf("Methods = %q", c.Methods)
 		}
 	})
+	t.Run("catdpop with settings this version ignores", func(t *testing.T) {
+		c, err := decodeClaims(enc(t, map[int64]any{321: map[int64]any{0: 30, 1: 7, 9: "x"}}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.dpopWindow == nil || *c.dpopWindow != 30 {
+			t.Errorf("window = %v, want 30", c.dpopWindow)
+		}
+	})
 	t.Run("catv 1", func(t *testing.T) {
 		c, err := decodeClaims(enc(t, map[int64]any{310: 1}))
 		if err != nil || c.Version != 1 {
@@ -162,7 +171,7 @@ func TestDecodeClaimsKeepsCheckingAfterATextKey(t *testing.T) {
 	payload := enc(t, claims)
 	for i := 0; i < 30; i++ {
 		if _, err := decodeClaims(payload); !errors.Is(err, cwt.ErrUnsupported) {
-			t.Fatalf("decode %d: got %v, want cnf refused as unsupported", i, err)
+			t.Fatalf("decode %d: got %v, want cnf without jkt refused as unsupported", i, err)
 		}
 	}
 }
@@ -207,6 +216,15 @@ func TestDecodeClaimsRejectsMalformed(t *testing.T) {
 		{"catv negative", enc(t, map[int64]any{310: -1})},
 		{"catv tagged", enc(t, map[int64]any{310: raw(t, "d903e801")})},
 		{"catm not an array", enc(t, map[int64]any{313: "GET"})},
+		{"cnf not a map", enc(t, map[int64]any{8: []any{}})},
+		{"jkt of 31 bytes", enc(t, map[int64]any{8: map[int64]any{323: make([]byte, 31)}})},
+		{"jkt not bytes", enc(t, map[int64]any{8: map[int64]any{323: "abc"}})},
+		{"catdpop not a map", enc(t, map[int64]any{321: []any{}})},
+		{"catdpop with a text key", enc(t, map[int64]any{321: map[string]any{"window": 1}})},
+		{"catdpop crit listing window", enc(t, map[int64]any{321: map[int64]any{-1: []int64{0}}})},
+		{"catdpop crit not an array", enc(t, map[int64]any{321: map[int64]any{-1: 5}})},
+		{"catdpop window not an unsigned integer", enc(t, map[int64]any{321: map[int64]any{0: "60"}})},
+		{"catdpop jti not an unsigned integer", enc(t, map[int64]any{321: map[int64]any{1: -1}})},
 		{"catu not a map", enc(t, map[int64]any{312: []any{}})},
 		{"catu with a text component key", enc(t, map[int64]any{312: map[string]any{"path": map[int64]any{}}})},
 		{"catu tagged", enc(t, map[int64]any{312: raw(t, "d903e8a0")})},
@@ -236,8 +254,9 @@ func TestDecodeClaimsRefusesUnsupported(t *testing.T) {
 		{"nbf before 64-bit seconds", enc(t, map[int64]any{5: raw(t, "3b8000000000000000")})},
 		{"exp as a float beyond 64-bit seconds", enc(t, map[int64]any{4: 1e19})},
 		{"nbf as a float before 64-bit seconds", enc(t, map[int64]any{5: -1e19})},
-		{"cnf, not yet enforced", enc(t, map[int64]any{8: map[int64]any{}})},
-		{"catdpop, not yet enforced", enc(t, map[int64]any{321: map[int64]any{}})},
+		{"cnf without jkt", enc(t, map[int64]any{8: map[int64]any{}})},
+		{"cnf with another confirmation method", enc(t, map[int64]any{8: map[int64]any{323: make([]byte, 32), 1: map[int64]any{}}})},
+		{"catdpop with a critical setting this version does not know", enc(t, map[int64]any{321: map[int64]any{-1: []int64{5}}})},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

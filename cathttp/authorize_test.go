@@ -1,9 +1,13 @@
 package cathttp_test
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -91,7 +95,7 @@ func TestAuthorizeFailures(t *testing.T) {
 	}{
 		{"no token", "https://example.com/x", nil, cathttp.ErrNoToken},
 		{"a malformed field hides a good URI token", "https://example.com/x?CAT=" + good, map[string][]string{"Cta-Common-Access-Token": {"a, b"}}, cathttp.ErrField},
-		{"a DPoP-scheme token", "https://example.com/x", map[string][]string{"Authorization": {"DPoP " + good}}, cwt.ErrUnsupported},
+		{"a DPoP-scheme token that is not bound", "https://example.com/x", map[string][]string{"Authorization": {"DPoP " + good}}, cat.ErrProof},
 		{"garbage", "https://example.com/x?CAT=AAAA", nil, cwt.ErrMalformed},
 	}
 	for _, tc := range cases {
@@ -211,5 +215,36 @@ func TestMiddlewareKeepsAnUnrelatedAuthorization(t *testing.T) {
 	h.ServeHTTP(httptest.NewRecorder(), r)
 	if forwarded == nil || forwarded.Header.Get("Authorization") != "Bearer upstream-credential" {
 		t.Fatalf("forwarded %v; the unrelated Authorization field must pass through", forwarded != nil)
+	}
+}
+
+// A token in the DPoP scheme, bound by cnf to the key of the proof that accompanies it, end to end.
+func TestAuthorizeDPoPScheme(t *testing.T) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b64 := base64.RawURLEncoding
+	x, y := make([]byte, 32), make([]byte, 32)
+	priv.X.FillBytes(x)
+	priv.Y.FillBytes(y)
+	xs, ys := b64.EncodeToString(x), b64.EncodeToString(y)
+	jkt := sha256.Sum256([]byte(`{"crv":"P-256","kty":"EC","x":"` + xs + `","y":"` + ys + `"}`))
+	tok := token(t, map[any]any{8: map[int64]any{323: jkt[:]}})
+	tokSum := sha256.Sum256([]byte(tok))
+	h, _ := json.Marshal(map[string]any{"typ": "dpop+jwt", "alg": "ES256", "jwk": map[string]any{"kty": "EC", "crv": "P-256", "x": xs, "y": ys}})
+	p, _ := json.Marshal(map[string]any{"jti": "j", "htm": "GET", "htu": "https://example.com/x", "iat": 1700000000, "ath": b64.EncodeToString(tokSum[:])})
+	input := b64.EncodeToString(h) + "." + b64.EncodeToString(p)
+	digest := sha256.Sum256([]byte(input))
+	r, s, err := ecdsa.Sign(rand.Reader, priv, digest[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	sig := make([]byte, 64)
+	r.FillBytes(sig[:32])
+	s.FillBytes(sig[32:])
+	req := request("https://example.com/x", map[string][]string{"Authorization": {"DPoP " + tok}, "Dpop": {input + "." + b64.EncodeToString(sig)}})
+	if _, err := authorizer().Authorize(req); err != nil {
+		t.Fatalf("Authorize: %v", err)
 	}
 }

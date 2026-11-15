@@ -16,10 +16,12 @@
 //	cath (315)  each named header must be present and match (needs ValidateRequest)
 //	catu (312)  each URI component must match, after normalization (needs ValidateRequest)
 //	catnip (311) the client's address must lie in a listed prefix, or its ASN be listed (needs ValidateRequest)
+//	cnf (8)     with jkt: the request's DPoP proof must be made with that key and match the request (needs ValidateRequest)
+//	catdpop (321) sets the proof's window; crit is honoured; jti never causes a refusal (decision 0020)
 //
-// It decodes and type-checks sub (2), iat (6) and cti (7), which are informational here. It refuses, as
-// unsupported, any token carrying a claim CTA-5007-B requires recipients to enforce that this version does not
-// enforce yet: cnf (8) and catdpop (321), which need DPoP (phase 3). Every other claim is
+// It decodes and type-checks sub (2), iat (6) and cti (7), which are informational here. Every claim CTA-5007-B
+// requires recipients to support is enforced; a cnf with a confirmation method other than jkt is refused as
+// unsupported. Every other claim is
 // ignored, as section 4.5 requires of claims a recipient does not support, including the optional catreplay,
 // catpor, catalpn, the geographic claims, cattpk, catifdata, catif and catr.
 //

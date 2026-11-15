@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/terra-howard/wtcat/cat"
-	"github.com/terra-howard/wtcat/cwt"
 )
 
 // ErrNoToken means the request carries no token in any place this Authorizer reads.
@@ -60,14 +59,13 @@ func (a *Authorizer) Authorize(r *http.Request) (*cat.Token, error) {
 	}
 	var firstErr, firstUnacceptable error
 	for _, t := range tokens {
-		var tok *cat.Token
-		if t.Where == InDPoP {
-			err = fmt.Errorf("%w: a token in the DPoP authorization scheme needs a DPoP proof, which this version cannot verify", cwt.ErrUnsupported)
-		} else {
-			req := &cat.Request{Method: r.Method, URI: a.absolute(r, RemoveFromURI(target, t)), Header: r.Header, ClientIP: ip, ClientASN: asn}
-			if tok, err = a.Validator.ValidateRequest(t.Text, req); err == nil {
-				return tok, nil
-			}
+		req := &cat.Request{
+			Method: r.Method, URI: a.absolute(r, RemoveFromURI(target, t)), Header: r.Header, ClientIP: ip, ClientASN: asn,
+			ReceivedURI: a.absolute(r, target), ViaDPoPScheme: t.Where == InDPoP,
+		}
+		tok, err := a.Validator.ValidateRequest(t.Text, req)
+		if err == nil {
+			return tok, nil
 		}
 		if firstErr == nil {
 			firstErr = err

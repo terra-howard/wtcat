@@ -26,6 +26,9 @@ type Claims struct {
 	headers []headerMatch    // cath (315); nil when absent
 	uri     []componentMatch // catu (312); nil when absent
 	network []netMatch       // catnip (311); nil when absent
+	jkt     []byte           // cnf (8) jkt (323); nil when cnf is absent
+	// dpopWindow is the window setting of catdpop (321), in seconds; nil when absent.
+	dpopWindow *uint64
 }
 
 // componentMatch is one member of a catu claim: a URI component (0 to 8) and its match.
@@ -42,26 +45,25 @@ type headerMatch struct {
 
 // Claim keys this package knows (section 4.5 and RFC 8392).
 const (
-	claimIss    = 1
-	claimSub    = 2
-	claimAud    = 3
-	claimExp    = 4
-	claimNbf    = 5
-	claimIat    = 6
-	claimCti    = 7
-	claimCatv   = 310
-	claimCatnip = 311
-	claimCatu   = 312
-	claimCatm   = 313
-	claimCath   = 315
+	claimIss     = 1
+	claimSub     = 2
+	claimAud     = 3
+	claimExp     = 4
+	claimNbf     = 5
+	claimIat     = 6
+	claimCti     = 7
+	claimCatv    = 310
+	claimCnf     = 8
+	claimCatnip  = 311
+	claimCatdpop = 321
+	claimCatu    = 312
+	claimCatm    = 313
+	claimCath    = 315
 )
 
 // notYetEnforced lists the claims a recipient must support (section 4.5) that phase 1 does not enforce yet. A token
 // carrying one is refused, never accepted with the restriction ignored (decision 0015).
-var notYetEnforced = map[int64]string{
-	8:   "cnf",
-	321: "catdpop",
-}
+var notYetEnforced = map[int64]string{} // none at present: phase 3 enforces cnf and catdpop
 
 // decMode decodes claims strictly: duplicate map keys, invalid UTF-8 and indefinite lengths are refused.
 var decMode = func() cbor.DecMode {
@@ -139,7 +141,7 @@ func decodeClaims(payload []byte) (*Claims, error) {
 // decodeClaim decodes one claim value into c if the key is one this package knows.
 func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	switch key {
-	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu, claimCatnip:
+	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu, claimCatnip, claimCnf, claimCatdpop:
 	default:
 		return nil
 	}
@@ -176,6 +178,10 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 		c.uri, err = decodeCatu(value)
 	case claimCatnip:
 		c.network, err = decodeCatnip(value)
+	case claimCnf:
+		c.jkt, err = decodeCnf(value)
+	case claimCatdpop:
+		c.dpopWindow, err = decodeCatdpop(value)
 	case claimCatv:
 		if majorType(value) != majorUnsigned {
 			return malformed("claim 310 (catv) is not an unsigned integer")
@@ -351,4 +357,80 @@ func decodeCatu(value cbor.RawMessage) ([]componentMatch, error) {
 		out = append(out, componentMatch{component: component, match: cm})
 	}
 	return out, nil
+}
+
+// decodeCnf decodes a cnf claim, which must hold a 32-byte jkt and no confirmation method this version cannot
+// check (decision 0020).
+func decodeCnf(value cbor.RawMessage) ([]byte, error) {
+	var m map[any]cbor.RawMessage
+	if err := decMode.Unmarshal(value, &m); err != nil || m == nil {
+		return nil, malformed("claim 8 (cnf) is not a map")
+	}
+	var jkt []byte
+	for k, v := range m {
+		if key, ok := k.(uint64); !ok || key != 323 {
+			return nil, unsupported("claim 8 (cnf) has confirmation method %v, which this version cannot check", k)
+		}
+		if len(v) == 0 || majorType(v) != majorBytes {
+			return nil, malformed("cnf jkt is not an untagged byte string")
+		}
+		if err := decMode.Unmarshal(v, &jkt); err != nil || len(jkt) != 32 {
+			return nil, malformed("cnf jkt is not 32 bytes")
+		}
+	}
+	if jkt == nil {
+		return nil, unsupported("claim 8 (cnf) has no jkt, the only confirmation method this version checks")
+	}
+	return jkt, nil
+}
+
+// decodeCatdpop decodes the settings of catdpop (section 4.8.2): crit (-1), window (0) and jti (1). jti never
+// causes a refusal (decision 0020), and other settings are ignored unless listed as critical.
+func decodeCatdpop(value cbor.RawMessage) (*uint64, error) {
+	var m map[any]cbor.RawMessage
+	if err := decMode.Unmarshal(value, &m); err != nil || m == nil {
+		return nil, malformed("claim 321 (catdpop) is not a map")
+	}
+	var window *uint64
+	for k, v := range m {
+		var key int64
+		switch kk := k.(type) {
+		case uint64:
+			if kk > 1 {
+				continue // a setting this version does not know, unless crit lists it
+			}
+			key = int64(kk)
+		case int64:
+			key = kk
+		default:
+			return nil, malformed("claim 321 (catdpop) has a key of type %T", k)
+		}
+		if len(v) == 0 || majorType(v) == majorTag {
+			return nil, malformed("catdpop setting %d is tagged", key)
+		}
+		switch key {
+		case -1:
+			var crit []int64
+			if majorType(v) != majorArray || decMode.Unmarshal(v, &crit) != nil {
+				return nil, malformed("catdpop crit is not an array of integers")
+			}
+			for _, c := range crit {
+				if c >= -1 && c <= 1 {
+					return nil, malformed("catdpop crit lists %d, which is always understood", c)
+				}
+			}
+			if len(crit) > 0 {
+				return nil, unsupported("catdpop crit lists setting %d, which this version does not know", crit[0])
+			}
+		case 0, 1:
+			var u uint64
+			if majorType(v) != majorUnsigned || decMode.Unmarshal(v, &u) != nil {
+				return nil, malformed("catdpop setting %d is not an unsigned integer", key)
+			}
+			if key == 0 {
+				window = &u
+			}
+		}
+	}
+	return window, nil
 }

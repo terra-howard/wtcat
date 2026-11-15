@@ -16,7 +16,7 @@ const (
 	InQuery                         // a form-style parameter, ?CAT= or &CAT=
 	InCookie                        // a cookie
 	InAuthorization                 // Authorization: Bearer
-	InDPoP                          // Authorization: DPoP, which needs phase 3 (decision 0018)
+	InDPoP                          // Authorization: DPoP (RFC 9449 Section 7), checked with its proof
 )
 
 // Located is a token and where it was found. For InPath and InQuery, Start is the offset of the parameter name and

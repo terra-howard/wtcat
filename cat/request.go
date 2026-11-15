@@ -29,6 +29,13 @@ type Request struct {
 	Header    http.Header // request header fields (cath)
 	ClientIP  netip.Addr  // the client's address (catnip)
 	ClientASN uint32      // the client's autonomous system number, 0 if unknown (catnip)
+
+	// ReceivedURI is the absolute request URI as received, before the token was removed, for the htu of a DPoP
+	// proof (decision 0020). When empty, URI is used.
+	ReceivedURI string
+	// ViaDPoPScheme reports that the token arrived in Authorization: DPoP, so it must be bound by cnf and the
+	// proof must carry ath (RFC 9449 Section 7).
+	ViaDPoPScheme bool
 }
 
 // ValidateRequest is Validate for a token presented with a request, so that the token's request claims can be
@@ -39,7 +46,7 @@ func (v *Validator) ValidateRequest(token string, req *Request) (*Token, error) 
 
 // checkRequest checks the request claims phase 2 enforces so far.
 func checkRequest(c *Claims, req *Request) error {
-	if c.Methods == nil && c.headers == nil && c.uri == nil && c.network == nil {
+	if c.Methods == nil && c.headers == nil && c.uri == nil && c.network == nil && c.jkt == nil {
 		return nil
 	}
 	if req == nil {
