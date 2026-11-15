@@ -213,4 +213,3 @@ func TestMiddlewareKeepsAnUnrelatedAuthorization(t *testing.T) {
 		t.Fatalf("forwarded %v; the unrelated Authorization field must pass through", forwarded != nil)
 	}
 }
-
