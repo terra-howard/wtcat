@@ -1,6 +1,6 @@
 # 0016. Giving `cwt.Claims` the shape RFC 8392 allows
 
-- **Status:** accepted, 2026-11-14 (proposed the same day): option A, delivered as a patch for the owner to apply
+- **Status:** accepted, 2026-11-14 (proposed the same day): option A. Applied by the owner in commit `5cfec67`
 - **Decided by:** Claude, under Terra Howard's delegation, widened the same evening to forks first set aside for her;
   pending her review. The protected-test edit itself remains hers (AGENTS.md rule 1, decision 0003).
 
@@ -64,4 +64,10 @@ The recommendation above stands: the package is unpublished, the protected tests
 the change, and two fields per claim (B) would cost every reader. Preparing the patch rather than waiting is what
 an expert does when the change needs someone else's hands: the reviewer gets a finished, verified change and one
 command, not a description of one.
+
+## Applied, 2026-11-14
+
+The owner applied the patch and committed it as `5cfec67`. On that commit every test passed and the census was green
+with the protected file's new hash. The patch file was then removed, since the commit is the record and the patch
+would no longer apply; it stays in the history at the commit before `5cfec67`.
 

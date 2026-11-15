@@ -65,12 +65,14 @@ case err != nil:
 ## 4. Read the claims
 
 `claims.Issuer`, `Subject`, `Audience`, `Expiry`, `NotBefore`, `IssuedAt` and `CWTID` hold RFC 8392's registered
-claims. Every other claim, including the Common Access Token's own, is in `claims.Other`, keyed by its number, as
-raw CBOR. Package `cwt` does not interpret CAT claims; that comes later, once their rules can be established from
-the specification ([decision 0002](../decisions/0002-spec-sources.md)).
+claims. `Audience` is a list, since `aud` may be a string or an array, and the dates are `*cwt.NumericDate`, exact
+for integer and fractional dates alike; `Unix` and `Fraction` read them ([decision
+0016](../decisions/0016-cwt-claims-shape.md)). Every other claim is in `claims.Other`, keyed by its number, as raw
+CBOR. Package `cwt` does not interpret the Common Access Token's own claims; for those, use package `cat` (see
+[how to validate a CAT](validate-a-cat.md)).
 
-## What `cwt` does not do yet
+## What `cwt` does not do
 
-- CAT claim validation (`catu`, `catr` and the rest).
+- CAT claim validation (`catu`, `catr` and the rest), which is package `cat`'s job.
 - Nested CWTs, detached payloads, external authenticated data, text-string claim keys, and floating-point dates.
   Each returns `ErrUnsupported` rather than being guessed at.
