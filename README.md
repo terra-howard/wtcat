@@ -1,48 +1,65 @@
 # wtcat
 
-*Working title.* A Go validator for the Common Access Token (CAT, CTA-5007), a CBOR Web Token format that CDNs use
-to decide whether a request may fetch content.
+*Working title.* A Go validator for the Common Access Token (CAT): the CBOR Web Token format of CTA-5007-B, which
+CDNs use to decide whether a request may fetch content.
 
-**Status:** phases 1 to 4 of [decision 0015](docs/decisions/0015-reconciling-with-cta-5007-b.md). Package `cwt`
-decodes CBOR Web Tokens, verifies COSE_Mac0 (HMAC 256/64 and 256/256) and COSE_Sign1 (ES256 and PS256), with a
-`Verifier` and, for profiles such as CAT, `VerifyMessage` with keys bound to one algorithm, and issues tokens
-(`Issue`). Package `cat` validates
-Common Access Tokens: strict base64url, deterministic encoding, `iss`, `aud`, `exp` and `nbf` with no leeway, and
-`catv`, and, given the request, `catm`, `cath`, `catu`, `catnip`, and `cnf` with `catdpop`, checking the request's DPoP
-proof (RFC 9449) with a narrow verifier of its own. Every claim CTA-5007-B requires recipients to support is
-enforced. Of the optional claims, `catreplay`, `catgeoiso3166`, `catalpn` and `cattpk` are enforced when the caller
-supplies what they need, and with an `Issuance` configured, `catr` renews tokens and `catif` shapes the response
-to a refused one, minting tokens where it asks; the rest are ignored, as the specification allows. The full list of
-supported claims is in the package documentation. The parsers are fuzzed. The census gate is green.
+```go
+v := &cat.Validator{Keys: keys, Audiences: []string{"cdn.example"}} // keys returns the cat.Key for a kid
+auth := &cathttp.Authorizer{Validator: v}
+http.Handle("/videos/", auth.Middleware(videos))
+```
 
-Package `cathttp` finds tokens in HTTP requests as section 4.4 orders them, removes each from the URI before `catu`,
-and wraps a handler: the `catif` response or 401 without an acceptable token, `Cache-Control: private` whenever a
-token was processed, token-bearing fields removed before forwarding, and `catr` renewals by cookie, header or
-redirect.
+Requests with an acceptable token reach `videos`. Others are answered 401, or as the refused token's `catif` claim
+asks. [The tutorial](docs/tutorials/protect-a-server.md) builds this end to end in about fifteen minutes.
 
-The specification is CTA-5007-B, *Common Access Token*, free to download from the
-[Consumer Technology Association](https://www.cta.tech/). This repository does not reproduce it
-([decision 0014](docs/decisions/0014-using-cta-5007-b-in-public.md)). If you have a copy, you can run the tests
-against its own HMAC 256/256 and PS256 examples: `pdftotext` it (without `-layout`), then
-`go run ./cmd/ctaexamples cta.txt` and `go test -tags cta ./cat`. The extracted examples stay on your machine.
+## What it does
 
-There are two deliverables of equal weight: a validator worth using, and the development process it is built with, written down in [docs/explanation/process.md](docs/explanation/process.md)
-so later projects can reuse it.
+- **`cwt`** decodes CBOR Web Tokens (RFC 8392), verifies COSE_Mac0 (HMAC 256/64 and 256/256) and COSE_Sign1
+  (ES256 and PS256), and issues tokens.
+- **`cat`** validates CATs as CTA-5007-B requires: a strict text form and deterministic encoding, keys bound to
+  one algorithm and one issuer, every claim the specification requires recipients to support, and the optional
+  claims whose context the caller supplies. Given signing keys, it renews tokens (`catr`) and answers refusals as
+  `catif` asks.
+- **`cathttp`** finds tokens in HTTP requests in the order section 4.4 sets, removes each from the URI before
+  `catu` is checked, and wraps a handler: refusals, `Cache-Control: private`, renewals, and token-bearing fields
+  removed before forwarding.
 
-- [docs/tutorials/protect-a-server.md](docs/tutorials/protect-a-server.md) walks a newcomer through protecting a small
-  server end to end.
-- [docs/explanation/design.md](docs/explanation/design.md) explains why the validator is built the way it is.
-- [docs/explanation/process.md](docs/explanation/process.md) explains how work happens here and why.
-- [docs/how-to/validate-a-cat.md](docs/how-to/validate-a-cat.md) shows how to validate a CAT with package `cat`.
-- [docs/how-to/verify-a-token.md](docs/how-to/verify-a-token.md) shows how to verify a general CWT with package `cwt`.
-- [docs/how-to/deploy-behind-a-proxy.md](docs/how-to/deploy-behind-a-proxy.md) shows what to set behind a proxy that
-  terminates TLS.
-- [docs/how-to/run-the-cta-example-tests.md](docs/how-to/run-the-cta-example-tests.md) runs the tests against
-  CTA-5007-B's own examples from your copy.
-- [docs/decisions/](docs/decisions/) holds one record per decision, proposed or accepted.
-- [docs/reference/errors.md](docs/reference/errors.md) lists every error the packages return, and what it means.
-- [docs/reference/measurements.md](docs/reference/measurements.md) records each task's prediction and outcome.
-- [AGENTS.md](AGENTS.md) is the steering file every coding agent reads first.
+The `cat` package documentation lists exactly which claims are enforced and which are ignored. Encrypted tokens and
+messages with several signers are not supported; [the design explanation](docs/explanation/design.md) says why, and
+what else is left out.
 
-Documentation follows [Diátaxis](https://diataxis.fr/): tutorials, how-to guides, reference and explanation, kept
-as separate pages, plus decision records.
+## Status
+
+Not yet published. Everything decided so far is built. Decisions 0006 onward were made under the owner's
+delegation and await her review. The tests include RFC 8392's examples as protected tests, the COSE working group's
+vectors and, run locally from a copy of the specification, CTA-5007-B's own HMAC and PS256 examples. The parsers
+are fuzzed, and mutation testing checks the tests.
+
+## The specification
+
+CTA-5007-B, *Common Access Token*, is free to download from the [Consumer Technology
+Association](https://www.cta.tech/). This repository does not reproduce it
+([decision 0014](docs/decisions/0014-using-cta-5007-b-in-public.md)). With a copy, you can
+[run the tests against its own examples](docs/how-to/run-the-cta-example-tests.md).
+
+## Two deliverables
+
+The validator and the development process it is built with matter equally. The process is explained in
+[docs/explanation/process.md](docs/explanation/process.md), so that later projects can reuse it.
+[AGENTS.md](AGENTS.md) is the steering file every coding agent reads first.
+
+## Documentation
+
+Organized by [Diátaxis](https://diataxis.fr/):
+
+- **Tutorial:** [protect a small server](docs/tutorials/protect-a-server.md), end to end, for a newcomer.
+- **How-to guides:** [validate a CAT](docs/how-to/validate-a-cat.md),
+  [verify a general CWT](docs/how-to/verify-a-token.md), [deploy behind a proxy](docs/how-to/deploy-behind-a-proxy.md),
+  and [run the tests against CTA-5007-B's examples](docs/how-to/run-the-cta-example-tests.md).
+- **Reference:** the package documentation (`go doc`), [every error and what it means](docs/reference/errors.md),
+  and the [measurements](docs/reference/measurements.md) of each task's prediction and outcome.
+- **Explanation:** [why the validator is built the way it is](docs/explanation/design.md), and
+  [how work happens here, and why](docs/explanation/process.md).
+- **Decisions:** [one record per decision](docs/decisions/), proposed or accepted.
+
+Licensed under the Apache License 2.0.

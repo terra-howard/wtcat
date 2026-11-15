@@ -43,6 +43,8 @@ green the easy way.
 | Keep a backlog of small tasks with clear outcomes, run in parallel | AWS frontier teams: "feed agents instead of babysitting them" |
 | Test early and locally, with realistic fakes of dependencies | AWS frontier teams: "shift testing left"; Magerramov's "wind tunnel" tests |
 | Protected tests and a census gate | This project; see [decision 0003](../decisions/0003-protected-tests.md) |
+| Fuzz every parser of untrusted input | This project; see [decision 0011](../decisions/0011-fuzzing.md) |
+| Test the tests by planting faults | This project; see [decision 0013](../decisions/0013-mutation-testing.md) |
 | Predictions committed before measurements | This project's owner, carried over from earlier work |
 | Every commit has a human who stands behind it | Magerramov |
 
@@ -57,6 +59,27 @@ possible, but only deliberately, by the owner, with a decision record saying why
 
 Ordinary tests are different. They change freely through normal review as the code changes.
 
+## Testing the tests
+
+A passing suite says little about how much it checks. Two practices measure that directly, and between them they
+found most of this project's real defects, each recorded in [the measurements](../reference/measurements.md).
+
+- **Fuzzing** feeds a parser millions of generated inputs, looking for a crash, or for an input that breaks a
+  property the code promises, such as a normalized URI normalizing to itself. Here it found a date whose fraction
+  could reach 1, and hosts that parsed differently a second time ([decision 0011](../decisions/0011-fuzzing.md)).
+- **Mutation testing** plants one small fault at a time, such as a flipped comparison or a deleted check, and runs
+  the tests against each. A fault the tests do not notice, a *survivor*, is either equivalent, unable to change
+  behaviour, or a gap. Each gap gets a test, and each equivalent survivor is recorded with its reason. A tool,
+  Gremlins, does this across a whole package ([decision 0013](../decisions/0013-mutation-testing.md)). For a change
+  in progress, a dozen faults planted by hand in the lines just written is quicker, and finds the same kinds of
+  gap: a test that passes for a reason other than the one it names, or a rule nothing tests at all.
+
+Neither replaces outside vectors. A surviving mutant shows that a test misses a change; a killed one shows only that
+the test notices it, not that the code was right to begin with.
+
+Gremlins starts thousands of short-lived test processes and loads every core for minutes. Run it where an
+interruption costs nothing, such as a build server, rather than on a machine doing other work.
+
 ## Roles
 
 - **The owner** (Terra Howard) decides forks, owns the protected tests, reviews and commits.
@@ -70,6 +93,7 @@ taken:
 
 - the protected suite green at every commit;
 - compile-and-fix rounds per task;
+- the share of planted faults the tests catch, and what each one they miss turns out to be;
 - time per task;
 - defects found after a commit, and which step should have caught them.
 

@@ -64,9 +64,9 @@ switch {
 case err == nil:
 	// Valid and acceptable: serve the request. tok.Claims holds the decoded claims.
 case errors.Is(err, cat.ErrUnacceptable):
-	// Valid, but a claim is not satisfied: cat.ErrExpired, cat.ErrNotYetValid, cat.ErrIssuer or cat.ErrAudience.
+	// Valid, but a claim is not satisfied: cat.ErrExpired, cat.ErrNotYetValid, cat.ErrIssuer, cat.ErrAudience, ...
 case errors.Is(err, cwt.ErrUnsupported):
-	// Too long, or uses something this version does not handle, such as a claim it cannot enforce yet.
+	// Too long, or uses something this version does not handle, such as a request claim given to Validate.
 default:
 	// cwt.ErrMalformed or cwt.ErrVerification: not a valid token.
 }

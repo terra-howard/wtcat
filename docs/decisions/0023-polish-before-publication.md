@@ -38,6 +38,16 @@ what the middleware does. Which of those would an expert make now, before anythi
    (section 4.5). Sorted order makes the same claims give the same bytes, which makes the output reproducible and
    easier to test and to debug.
 
+**Update, task 52.** The test written for item 3 found one more gap of the same kind. A handler that writes no
+body never calls the response writer, so the server sent the implicit 200 status itself, bypassing the
+middleware's writer: the response went out without `private`, and without any renewal cookie or field. The
+middleware now finishes the header itself when the handler returns.
+
+**Sources for item 4.** RFC 9651's section numbers and its limits on integers and decimals were read from the RFC's
+text. Its display-string and number parsing algorithms (Sections 4.2.10 and 4.2.4) came through a summary that
+agreed with this project's understanding of them; the tests encode that understanding, and the RFC text is the
+reference if they ever disagree.
+
 ## Consequences
 
 - Callers that wrote the type name `cathttp.Location` must write `cathttp.Place`. None exist outside this

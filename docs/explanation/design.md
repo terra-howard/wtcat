@@ -98,6 +98,15 @@ keys others must trust. So issuing is off unless a `Validator` is given an `Issu
 `exp`, `iss`, `iat` and `cti`, and carries every other claim exactly as received, including ones this package does
 not understand ([0022](../decisions/0022-issuance-catr-catif.md)).
 
+## A response to a token is private, whatever the handler does
+
+Section 4.3.1.5.1 has a recipient that processed a token mark its response private, so that shared caches do not
+store it. The middleware enforces this in the response writer it hands the handler, so it holds whatever the
+handler sets. It drops `public`. It replaces a `private` that names fields, since that form lets a shared cache
+store the rest of the response. And when a handler writes no body, it finishes the header itself, because the
+server would otherwise send the response without passing through the writer at all
+([0019](../decisions/0019-http-integration.md), [0023](../decisions/0023-polish-before-publication.md)).
+
 ## Deliberately not supported
 
 - **`geohash`** takes its rules from another standard, CTA-5009-A, which this project has not read; building it
