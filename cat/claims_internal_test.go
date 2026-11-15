@@ -146,7 +146,6 @@ func TestDecodeClaimsIgnoresUnknownAndOptionalClaims(t *testing.T) {
 		uint64(1<<64 - 1): 0,
 		int64(308):        1,           // catreplay
 		int64(309):        []any{},     // catpor
-		int64(314):        "h2",        // catalpn, even with the wrong type
 		int64(316):        []any{"CA"}, // catgeoiso3166
 		int64(322):        map[int64]any{},
 		int64(323):        map[int64]any{},

@@ -31,6 +31,8 @@ type Claims struct {
 	dpopWindow *uint64
 	replay     *uint64  // catreplay (308); nil when absent
 	countries  []string // catgeoiso3166 (316); nil when absent
+	alpns      [][]byte // catalpn (314); nil when absent
+	tpk        []byte   // cattpk (319); nil when absent
 }
 
 // componentMatch is one member of a catu claim: a URI component (0 to 8) and its match.
@@ -144,7 +146,7 @@ func decodeClaims(payload []byte) (*Claims, error) {
 // decodeClaim decodes one claim value into c if the key is one this package knows.
 func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	switch key {
-	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu, claimCatnip, claimCnf, claimCatdpop, claimCatreplay, claimCatgeoiso3166:
+	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu, claimCatnip, claimCnf, claimCatdpop, claimCatreplay, claimCatgeoiso3166, claimCatalpn, claimCattpk:
 	default:
 		return nil
 	}
@@ -181,6 +183,10 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 		c.uri, err = decodeCatu(value)
 	case claimCatnip:
 		c.network, err = decodeCatnip(value)
+	case claimCatalpn:
+		c.alpns, err = decodeALPNs(value)
+	case claimCattpk:
+		c.tpk, err = decodeTPK(value)
 	case claimCatgeoiso3166:
 		c.countries, err = decodeCountries(value)
 	case claimCatreplay:

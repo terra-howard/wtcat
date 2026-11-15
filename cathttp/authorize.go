@@ -32,6 +32,10 @@ type Authorizer struct {
 	ClientIP func(*http.Request) netip.Addr
 	// ClientASN returns the client's autonomous system number, or 0 if unknown. Optional.
 	ClientASN func(netip.Addr) uint32
+	// Connection describes the request's connection, for catalpn and cattpk; by default it is read from the
+	// request's TLS state. Set it behind a proxy that terminates TLS, or the default reports no TLS and such tokens
+	// are refused. Return nil to have those claims ignored.
+	Connection func(*http.Request) *cat.Connection
 }
 
 // Authorize returns the first acceptable token in the request. If none is acceptable, the error is that of the
@@ -61,7 +65,7 @@ func (a *Authorizer) Authorize(r *http.Request) (*cat.Token, error) {
 	for _, t := range tokens {
 		req := &cat.Request{
 			Method: r.Method, URI: a.absolute(r, RemoveFromURI(target, t)), Header: r.Header, ClientIP: ip, ClientASN: asn,
-			ReceivedURI: a.absolute(r, target), ViaDPoPScheme: t.Where == InDPoP,
+			ReceivedURI: a.absolute(r, target), ViaDPoPScheme: t.Where == InDPoP, Connection: a.connection(r),
 		}
 		tok, err := a.Validator.ValidateRequest(t.Text, req)
 		if err == nil {
@@ -105,6 +109,21 @@ func (a *Authorizer) absolute(r *http.Request, target string) string {
 		scheme = a.Scheme
 	}
 	return scheme + "://" + r.Host + target
+}
+
+// connection reads the request's TLS state, unless the Connection option replaces it.
+func (a *Authorizer) connection(r *http.Request) *cat.Connection {
+	if a.Connection != nil {
+		return a.Connection(r)
+	}
+	if r.TLS == nil {
+		return &cat.Connection{}
+	}
+	c := &cat.Connection{TLS: true, ALPN: r.TLS.NegotiatedProtocol}
+	for _, cert := range r.TLS.PeerCertificates {
+		c.ClientKeys = append(c.ClientKeys, cert.RawSubjectPublicKeyInfo)
+	}
+	return c
 }
 
 func (a *Authorizer) clientIP(r *http.Request) netip.Addr {

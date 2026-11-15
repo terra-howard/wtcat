@@ -248,3 +248,22 @@ func TestAuthorizeDPoPScheme(t *testing.T) {
 		t.Fatalf("Authorize: %v", err)
 	}
 }
+
+// The connection is read from the request's TLS state: httptest marks https requests as TLS.
+func TestAuthorizeReadsTheConnection(t *testing.T) {
+	tok := token(t, map[any]any{314: [][]byte{[]byte("h2")}})
+	secure := request("https://example.com/x?CAT="+tok, nil)
+	secure.TLS.NegotiatedProtocol = "h2"
+	if _, err := authorizer().Authorize(secure); err != nil {
+		t.Fatalf("over TLS with h2: %v", err)
+	}
+	plain := request("http://example.com/x?CAT="+tok, nil)
+	if _, err := authorizer().Authorize(plain); !errors.Is(err, cat.ErrConnection) {
+		t.Fatalf("without TLS: got %v, want cat.ErrConnection", err)
+	}
+	a := authorizer()
+	a.Connection = func(*http.Request) *cat.Connection { return &cat.Connection{TLS: true, ALPN: "h2"} }
+	if _, err := a.Authorize(plain); err != nil {
+		t.Fatalf("with a Connection option, as behind a proxy: %v", err)
+	}
+}

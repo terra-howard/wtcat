@@ -39,6 +39,9 @@ type Request struct {
 	// Location is where the client was found to be, for catgeoiso3166. Nil means the recipient does not locate
 	// clients, and the claim is ignored (decision 0021).
 	Location *Location
+	// Connection describes the connection the request came over, for catalpn and cattpk. Nil means the recipient
+	// does not supply it, and those claims are ignored (decision 0021).
+	Connection *Connection
 }
 
 // ValidateRequest is Validate for a token presented with a request, so that the token's request claims can be
