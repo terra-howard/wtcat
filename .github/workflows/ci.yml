@@ -27,6 +27,9 @@ jobs:
         run: go run ./cmd/census
       - name: Fuzz (30 seconds per target)
         run: |
-          for target in FuzzDecodeClaims FuzzVerifyMac0 FuzzVerifySign1; do
+          for target in FuzzDecodeClaims FuzzVerifyMac0 FuzzVerifySign1 FuzzVerifyMessage; do
             go test ./cwt -run='^$' -fuzz="^${target}\$" -fuzztime=30s
+          done
+          for target in FuzzCheckDeterministic FuzzDecodeClaims FuzzValidate; do
+            go test ./cat -run='^$' -fuzz="^${target}\$" -fuzztime=30s
           done
