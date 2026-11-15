@@ -13,8 +13,8 @@ http.Handle("/content/", auth.Middleware(contentHandler))
 
 It finds tokens where section 4.4 of CTA-5007-B allows (the `CTA-Common-Access-Token` field alone if present,
 otherwise `;CAT=` and `?CAT=` parameters, then a `CAT` cookie), removes each from the URI before `catu` is checked,
-answers 401 when no token is acceptable, and marks responses `Cache-Control: private`. Set `ClientIP` and `Scheme`
-if you run behind a proxy. The steps below describe the `Validator` it uses.
+answers 401 when no token is acceptable, and marks responses `Cache-Control: private`. Behind a proxy, see
+[How to deploy behind a proxy](deploy-behind-a-proxy.md). The steps below describe the `Validator` it uses.
 
 ## 1. Describe your keys
 

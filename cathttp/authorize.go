@@ -37,6 +37,9 @@ type Authorizer struct {
 	// request's TLS state. Set it behind a proxy that terminates TLS, or the default reports no TLS and such tokens
 	// are refused. Return nil to have those claims ignored.
 	Connection func(*http.Request) *cat.Connection
+	// Location returns where the client is, for catgeoiso3166. Optional; without it that claim is ignored. Return a
+	// Location with an empty Country when a lookup fails, so that tokens restricted by place are refused.
+	Location func(*http.Request) *cat.Location
 }
 
 // Authorize returns the first acceptable token in the request. If none is acceptable, the error is that of the
@@ -69,12 +72,17 @@ func (a *Authorizer) authorize(r *http.Request) (*cat.Token, Located, *cat.Reque
 	if a.ClientASN != nil && ip.IsValid() {
 		asn = a.ClientASN(ip)
 	}
+	conn := a.connection(r)
+	var place *cat.Location
+	if a.Location != nil {
+		place = a.Location(r) // once per request: a lookup can be costly
+	}
 	var firstErr, firstUnacceptable error
 	var firstReq, unacceptableReq *cat.Request
 	for _, t := range tokens {
 		req := &cat.Request{
 			Method: r.Method, URI: a.absolute(r, RemoveFromURI(target, t)), Header: r.Header, ClientIP: ip, ClientASN: asn,
-			ReceivedURI: a.absolute(r, target), ViaDPoPScheme: t.Where == InDPoP, Connection: a.connection(r),
+			ReceivedURI: a.absolute(r, target), ViaDPoPScheme: t.Where == InDPoP, Connection: conn, Location: place,
 		}
 		tok, err := a.Validator.ValidateRequest(t.Text, req)
 		if err == nil {

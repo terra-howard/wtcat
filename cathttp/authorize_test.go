@@ -279,3 +279,21 @@ func TestMiddlewareAnswersWithCatif(t *testing.T) {
 		t.Fatalf("handler called %v, status %d, Location %q, Cache-Control %q", called, rec.Code, rec.Header().Get("Location"), rec.Header().Get("Cache-Control"))
 	}
 }
+
+// The Location option feeds catgeoiso3166; without it the claim is ignored.
+func TestAuthorizeLocation(t *testing.T) {
+	tok := token(t, map[any]any{316: []string{"CA"}})
+	r := request("https://example.com/x?CAT="+tok, nil)
+	if _, err := authorizer().Authorize(r); err != nil {
+		t.Fatalf("without a Location option the claim is ignored: %v", err)
+	}
+	a := authorizer()
+	a.Location = func(*http.Request) *cat.Location { return &cat.Location{Country: "FR"} }
+	if _, err := a.Authorize(r); !errors.Is(err, cat.ErrLocation) {
+		t.Fatalf("from France: got %v, want cat.ErrLocation", err)
+	}
+	a.Location = func(*http.Request) *cat.Location { return &cat.Location{Country: "CA", Region: "ON"} }
+	if _, err := a.Authorize(r); err != nil {
+		t.Fatalf("from Ontario: %v", err)
+	}
+}

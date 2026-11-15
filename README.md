@@ -35,6 +35,10 @@ so later projects can reuse it.
 - [docs/explanation/process.md](docs/explanation/process.md) explains how work happens here and why.
 - [docs/how-to/validate-a-cat.md](docs/how-to/validate-a-cat.md) shows how to validate a CAT with package `cat`.
 - [docs/how-to/verify-a-token.md](docs/how-to/verify-a-token.md) shows how to verify a general CWT with package `cwt`.
+- [docs/how-to/deploy-behind-a-proxy.md](docs/how-to/deploy-behind-a-proxy.md) shows what to set behind a proxy that
+  terminates TLS.
+- [docs/how-to/run-the-cta-example-tests.md](docs/how-to/run-the-cta-example-tests.md) runs the tests against
+  CTA-5007-B's own examples from your copy.
 - [docs/decisions/](docs/decisions/) holds one record per decision, proposed or accepted.
 - [docs/reference/measurements.md](docs/reference/measurements.md) records each task's prediction and outcome.
 - [AGENTS.md](AGENTS.md) is the steering file every coding agent reads first.
