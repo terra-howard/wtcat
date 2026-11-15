@@ -15,10 +15,11 @@
 //	catm (313)  must list the request's method, case-sensitively (needs ValidateRequest)
 //	cath (315)  each named header must be present and match (needs ValidateRequest)
 //	catu (312)  each URI component must match, after normalization (needs ValidateRequest)
+//	catnip (311) the client's address must lie in a listed prefix, or its ASN be listed (needs ValidateRequest)
 //
 // It decodes and type-checks sub (2), iat (6) and cti (7), which are informational here. It refuses, as
 // unsupported, any token carrying a claim CTA-5007-B requires recipients to enforce that this version does not
-// enforce yet: cnf (8), catnip (311) and catdpop (321). Every other claim is
+// enforce yet: cnf (8) and catdpop (321), which need DPoP (phase 3). Every other claim is
 // ignored, as section 4.5 requires of claims a recipient does not support, including the optional catreplay,
 // catpor, catalpn, the geographic claims, cattpk, catifdata, catif and catr.
 //
@@ -27,7 +28,9 @@
 //
 // For catu, Request.URI must be the absolute request URI with the token already removed, as section 4.6.10
 // describes; this package normalizes it (RFC 9110 Section 4.2.3, RFC 3986 Sections 6.2.2 and 6.2.3) before
-// matching, so a default port becomes the empty port component.
+// matching, so a default port becomes the empty port component. A catnip claim naming a full address, or a
+// prefix longer than /24 (IPv4) or /56 (IPv6), is malformed: section 4.6.9 requires such values to be encrypted,
+// and this package does not decrypt tokens.
 //
 // Regular expressions in matches are POSIX extended regular expressions, run by regexp.CompilePOSIX, which takes
 // time linear in its input. Two differences from POSIX are handled as decision 0017 records: among several
@@ -43,6 +46,7 @@
 //	request.go        Request, ValidateRequest and the request claims (decision 0017)
 //	match.go          the match types of section 4.6.10, used by cath and catu, and the POSIX regex checks
 //	uri.go            request URI normalization and the nine catu components
+//	network.go        catnip: ASNs and RFC 9164 prefixes
 //	decode.go         the token's text form: strict base64url and the length limit
 //	deterministic.go  the deterministic-encoding check of section 4.5
 //	claims.go         Claims and the claim-set decoder: core claims, catv, tag rules, claims not yet enforced

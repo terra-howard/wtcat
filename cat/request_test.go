@@ -3,7 +3,10 @@ package cat_test
 import (
 	"errors"
 	"net/http"
+	"net/netip"
 	"testing"
+
+	"github.com/fxamacker/cbor/v2"
 
 	"github.com/terra-howard/wtcat/cat"
 	"github.com/terra-howard/wtcat/cwt"
@@ -153,5 +156,20 @@ func TestValidateRequestChecksCatu(t *testing.T) {
 
 func TestCatuNeedsARequest(t *testing.T) {
 	_, err := validator().Validate(claimsToken(t, map[any]any{312: map[int64]any{3: map[int64]any{1: "/"}}}))
+	wantKind(t, err, cwt.ErrUnsupported)
+}
+
+func TestValidateRequestChecksCatnip(t *testing.T) {
+	token := claimsToken(t, map[any]any{311: []any{cbor.Tag{Number: 52, Content: []any{24, []byte{192, 0, 2}}}}})
+	req := get()
+	req.ClientIP = netip.MustParseAddr("192.0.2.9")
+	if _, err := validator().ValidateRequest(token, req); err != nil {
+		t.Fatalf("an address in the prefix: %v", err)
+	}
+	req.ClientIP = netip.MustParseAddr("198.51.100.9")
+	_, err := validator().ValidateRequest(token, req)
+	wantKind(t, err, cat.ErrNetwork)
+	wantKind(t, err, cat.ErrUnacceptable)
+	_, err = validator().Validate(token)
 	wantKind(t, err, cwt.ErrUnsupported)
 }

@@ -16,6 +16,9 @@ var ErrMethod = fmt.Errorf("%w: catm does not list the request's method", ErrUna
 // ErrURI means the request URI does not satisfy the token's catu claim, or cannot be parsed to check it.
 var ErrURI = fmt.Errorf("%w: the request URI does not satisfy catu", ErrUnacceptable)
 
+// ErrNetwork means neither the client's address nor its ASN is listed in the token's catnip claim.
+var ErrNetwork = fmt.Errorf("%w: the client's network is not listed in catnip", ErrUnacceptable)
+
 // ErrHeader means a request header does not satisfy the token's cath claim.
 var ErrHeader = fmt.Errorf("%w: a request header does not satisfy cath", ErrUnacceptable)
 
@@ -36,7 +39,7 @@ func (v *Validator) ValidateRequest(token string, req *Request) (*Token, error) 
 
 // checkRequest checks the request claims phase 2 enforces so far.
 func checkRequest(c *Claims, req *Request) error {
-	if c.Methods == nil && c.headers == nil && c.uri == nil {
+	if c.Methods == nil && c.headers == nil && c.uri == nil && c.network == nil {
 		return nil
 	}
 	if req == nil {
@@ -44,6 +47,9 @@ func checkRequest(c *Claims, req *Request) error {
 	}
 	if c.Methods != nil && !slices.Contains(c.Methods, req.Method) {
 		return ErrMethod
+	}
+	if c.network != nil && !catnipMatches(c.network, req.ClientIP, req.ClientASN) {
+		return ErrNetwork
 	}
 	if c.uri != nil {
 		parts, err := normalizeURI(req.URI)

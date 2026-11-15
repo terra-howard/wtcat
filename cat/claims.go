@@ -25,6 +25,7 @@ type Claims struct {
 
 	headers []headerMatch    // cath (315); nil when absent
 	uri     []componentMatch // catu (312); nil when absent
+	network []netMatch       // catnip (311); nil when absent
 }
 
 // componentMatch is one member of a catu claim: a URI component (0 to 8) and its match.
@@ -41,24 +42,24 @@ type headerMatch struct {
 
 // Claim keys this package knows (section 4.5 and RFC 8392).
 const (
-	claimIss  = 1
-	claimSub  = 2
-	claimAud  = 3
-	claimExp  = 4
-	claimNbf  = 5
-	claimIat  = 6
-	claimCti  = 7
-	claimCatv = 310
-	claimCatu = 312
-	claimCatm = 313
-	claimCath = 315
+	claimIss    = 1
+	claimSub    = 2
+	claimAud    = 3
+	claimExp    = 4
+	claimNbf    = 5
+	claimIat    = 6
+	claimCti    = 7
+	claimCatv   = 310
+	claimCatnip = 311
+	claimCatu   = 312
+	claimCatm   = 313
+	claimCath   = 315
 )
 
 // notYetEnforced lists the claims a recipient must support (section 4.5) that phase 1 does not enforce yet. A token
 // carrying one is refused, never accepted with the restriction ignored (decision 0015).
 var notYetEnforced = map[int64]string{
 	8:   "cnf",
-	311: "catnip",
 	321: "catdpop",
 }
 
@@ -138,7 +139,7 @@ func decodeClaims(payload []byte) (*Claims, error) {
 // decodeClaim decodes one claim value into c if the key is one this package knows.
 func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	switch key {
-	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu:
+	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu, claimCatnip:
 	default:
 		return nil
 	}
@@ -173,6 +174,8 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 		c.headers, err = decodeCath(value)
 	case claimCatu:
 		c.uri, err = decodeCatu(value)
+	case claimCatnip:
+		c.network, err = decodeCatnip(value)
 	case claimCatv:
 		if majorType(value) != majorUnsigned {
 			return malformed("claim 310 (catv) is not an unsigned integer")

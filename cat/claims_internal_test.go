@@ -237,7 +237,6 @@ func TestDecodeClaimsRefusesUnsupported(t *testing.T) {
 		{"exp as a float beyond 64-bit seconds", enc(t, map[int64]any{4: 1e19})},
 		{"nbf as a float before 64-bit seconds", enc(t, map[int64]any{5: -1e19})},
 		{"cnf, not yet enforced", enc(t, map[int64]any{8: map[int64]any{}})},
-		{"catnip, not yet enforced", enc(t, map[int64]any{311: []any{}})},
 		{"catdpop, not yet enforced", enc(t, map[int64]any{321: map[int64]any{}})},
 	}
 	for _, tc := range cases {
@@ -252,6 +251,12 @@ func TestDecodeClaimsRefusesUnsupported(t *testing.T) {
 func FuzzDecodeClaims(f *testing.F) {
 	f.Add(mustHex(f, rfcClaimsA1))
 	seed, err := cbor.Marshal(map[int64]any{3: []string{"a", "b"}, 4: 1700000000.5, 5: -1.5, 310: 1, 999: "x"})
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Add(seed)
+	seed, err = cbor.Marshal(map[int64]any{311: []any{uint64(64500), cbor.Tag{Number: 52, Content: []any{24, []byte{192, 0, 2}}},
+		cbor.Tag{Number: 54, Content: []any{32, []byte{0x20, 0x01, 0x0d, 0xb8}}}}, 312: map[int64]any{3: map[int64]any{1: "/a/"}}})
 	if err != nil {
 		f.Fatal(err)
 	}
