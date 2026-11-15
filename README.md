@@ -3,18 +3,22 @@
 *Working title.* A Go validator for the Common Access Token (CAT, CTA-5007), a CBOR Web Token format that CDNs use
 to decide whether a request may fetch content.
 
-**Status:** phase 1 of [decision 0015](docs/decisions/0015-reconciling-with-cta-5007-b.md). Package `cwt` decodes
-CBOR Web Tokens and verifies COSE_Mac0 (HMAC 256/64 and 256/256) and COSE_Sign1 (ES256 and PS256), with a
-`Verifier` and, for profiles such as CAT, `VerifyMessage` with keys bound to one algorithm. Package `cat` validates
+**Status:** phases 1 to 4 of [decision 0015](docs/decisions/0015-reconciling-with-cta-5007-b.md). Package `cwt`
+decodes CBOR Web Tokens, verifies COSE_Mac0 (HMAC 256/64 and 256/256) and COSE_Sign1 (ES256 and PS256), with a
+`Verifier` and, for profiles such as CAT, `VerifyMessage` with keys bound to one algorithm, and issues tokens
+(`Issue`). Package `cat` validates
 Common Access Tokens: strict base64url, deterministic encoding, `iss`, `aud`, `exp` and `nbf` with no leeway, and
 `catv`, and, given the request, `catm`, `cath`, `catu`, `catnip`, and `cnf` with `catdpop`, checking the request's DPoP
 proof (RFC 9449) with a narrow verifier of its own. Every claim CTA-5007-B requires recipients to support is
-enforced; optional claims are ignored, as the specification allows. The full list of
+enforced. Of the optional claims, `catreplay`, `catgeoiso3166`, `catalpn` and `cattpk` are enforced when the caller
+supplies what they need, and with an `Issuance` configured, `catr` renews tokens and `catif` shapes the response
+to a refused one, minting tokens where it asks; the rest are ignored, as the specification allows. The full list of
 supported claims is in the package documentation. The parsers are fuzzed. The census gate is green.
 
 Package `cathttp` finds tokens in HTTP requests as section 4.4 orders them, removes each from the URI before `catu`,
-and wraps a handler: 401 without an acceptable token, `Cache-Control: private` whenever a token was processed, and
-token-bearing fields removed before forwarding.
+and wraps a handler: the `catif` response or 401 without an acceptable token, `Cache-Control: private` whenever a
+token was processed, token-bearing fields removed before forwarding, and `catr` renewals by cookie, header or
+redirect.
 
 The specification is CTA-5007-B, *Common Access Token*, free to download from the
 [Consumer Technology Association](https://www.cta.tech/). This repository does not reproduce it

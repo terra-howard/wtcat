@@ -131,3 +131,31 @@ func TestMiddlewareDoesNotRenewWithoutIssuance(t *testing.T) {
 		t.Error("renewed without an Issuance")
 	}
 }
+
+func TestMiddlewareRenewalEdges(t *testing.T) {
+	a := renewing()
+	for name, tc := range map[string]struct {
+		catr       map[int64]any
+		wantCookie bool
+	}{
+		"a space in a cookie parameter":          {map[int64]any{0: 1, 1: 60, 5: []string{"Comment=a b"}}, true},
+		"a unit separator in a cookie parameter": {map[int64]any{0: 1, 1: 60, 5: []string{"ab"}}, false},
+		"a delete in a cookie parameter":         {map[int64]any{0: 1, 1: 60, 5: []string{"ab"}}, false},
+		"a cookie name that is not a token":      {map[int64]any{0: 1, 1: 60, 3: "bad name"}, false},
+	} {
+		rec, _ := serve(t, a, request("https://example.com/x?CAT="+token(t, map[any]any{323: tc.catr}), nil), nil)
+		if got := rec.Header().Get("Set-Cookie") != ""; got != tc.wantCookie {
+			t.Errorf("%s: Set-Cookie %q, want a cookie %v", name, rec.Header().Get("Set-Cookie"), tc.wantCookie)
+		}
+	}
+	// With Issuance but no catr, nothing is renewed and nothing breaks.
+	if rec, called := serve(t, a, request("https://example.com/x?CAT="+token(t, map[any]any{}), nil), nil); !called || rec.Header().Get("Set-Cookie") != "" {
+		t.Errorf("no catr: handler called %v, Set-Cookie %q", called, rec.Header().Get("Set-Cookie"))
+	}
+	// An automatic renewal from the field uses a header name the catr gives.
+	tok := token(t, map[any]any{323: map[int64]any{0: 0, 1: 60, 4: "X-Renewed"}})
+	rec, _ := serve(t, a, request("https://example.com/x", map[string][]string{"Cta-Common-Access-Token": {`"` + tok + `"`}}), nil)
+	if rec.Header().Get("X-Renewed") == "" {
+		t.Errorf("automatic renewal from the field ignored the header name: %v", rec.Header())
+	}
+}

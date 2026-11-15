@@ -181,3 +181,31 @@ func TestCatifMintsOnlyWithAKid(t *testing.T) {
 		t.Fatalf("IfResponse = %+v, want Location x= with the map left empty", resp)
 	}
 }
+
+func TestCatifBoundaries(t *testing.T) {
+	cases := []struct {
+		name  string
+		catif any
+		want  bool
+	}{
+		{"status 100", map[int64]any{4: []any{100}}, true},
+		{"status 599", map[int64]any{4: []any{599}}, true},
+		{"status 99", map[int64]any{4: []any{99}}, false},
+		{"status 600", map[int64]any{4: []any{600}}, false},
+		{"a tab in a value", map[int64]any{4: []any{302, map[string]any{"X": "a\tb"}}}, true},
+		{"a space in a value", map[int64]any{4: []any{302, map[string]any{"X": "a b"}}}, true},
+		{"a unit separator in a value", map[int64]any{4: []any{302, map[string]any{"X": "a\x1fb"}}}, false},
+		{"a delete in a value", map[int64]any{4: []any{302, map[string]any{"X": "a\x7fb"}}}, false},
+		// {[5, 6]: [403]}: a label set without the refusing claim.
+		{"a label set without the refusing claim", cbor.RawMessage(fromHex(t, "a1 82 05 06 81 190193")), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			text := claimsToken(t, map[any]any{4: testNow.Unix() - 1, 322: tc.catif})
+			resp := validator().IfResponse(refusal(t, validator(), text, ifRequest()), ifRequest(), testNow)
+			if (resp != nil) != tc.want {
+				t.Fatalf("IfResponse = %+v, want a response %v", resp, tc.want)
+			}
+		})
+	}
+}

@@ -75,6 +75,27 @@ default:
 CTA-5007-B separates *valid* tokens from *acceptable* ones, and a later version of this package will act on the
 `catif` claim only for tokens that are valid but unacceptable. Keep that distinction in your handling now.
 
+## 4. Renew tokens and answer refusals (optional)
+
+To follow `catr` (renewal) and the minted tokens of `catif`, give the `Validator` an `Issuance`: the issuer name
+your recipient signs as, and its signing keys.
+
+```go
+v.Issuance = &cat.Issuance{
+	Issuer: "cdn.example",
+	Key: func(kid string) (cwt.SigningKey, error) {
+		// kid "" asks for the renewal key; catif names its kid.
+		return cwt.SigningKey{Algorithm: cwt.ES256, KID: []byte("cdn-1"), Material: privateKey}, nil
+	},
+}
+```
+
+The middleware then renews tokens whose `catr` asks for it, by cookie, header or redirect, and answers a refused
+token with the status and header fields its `catif` asks for instead of 401. Calling `cat` directly,
+`v.Renew(tok, now)` returns a `*cat.Renewal`, and a refusal that is a `*cat.Unacceptable` (test with `errors.As`)
+can be passed to `v.IfResponse`. Tokens you issue must verify wherever they are presented, so publish the matching
+public keys to those recipients; which keys, and how, is outside CTA-5007-B.
+
 ## What this version enforces
 
 The package documentation (`go doc ./cat`) lists exactly which claims are enforced, which are refused because

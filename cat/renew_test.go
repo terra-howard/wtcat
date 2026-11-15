@@ -69,7 +69,7 @@ func TestRenewCookie(t *testing.T) {
 		323: map[int64]any{0: 1, 1: 60, 3: "CAT2", 5: []string{"Secure", "HttpOnly"}},
 	})
 	r, claims := renewed(t, renewer(), text)
-	if r.Type != cat.RenewCookie || r.CookieName != "CAT2" || len(r.CookieParams) != 2 || r.CookieParams[1] != "HttpOnly" {
+	if r.Type != cat.RenewCookie || r.CookieName != "CAT2" || len(r.CookieParams) != 2 || r.CookieParams[1] != "HttpOnly" || r.Status != 0 {
 		t.Errorf("renewal = %+v", r)
 	}
 	if !bytes.Equal(claims[4], enc(t, testNow.Unix()+60)) || !bytes.Equal(claims[6], enc(t, testNow.Unix())) || !bytes.Equal(claims[1], enc(t, "cdn")) {
@@ -202,5 +202,56 @@ func TestRenewWithoutAnIssuerNameDropsIss(t *testing.T) {
 	_, claims := renewed(t, v, text)
 	if _, ok := claims[1]; ok {
 		t.Error("the renewed token kept an iss")
+	}
+}
+
+func TestRenewBoundaries(t *testing.T) {
+	for name, tc := range map[string]struct {
+		catr  any
+		renew bool
+	}{
+		"redirect status 300":     {map[int64]any{0: 3, 1: 60, 7: 300}, true},
+		"redirect status 399":     {map[int64]any{0: 3, 1: 60, 7: 399}, true},
+		"redirect status 299":     {map[int64]any{0: 3, 1: 60, 7: 299}, false},
+		"redirect status 400":     {map[int64]any{0: 3, 1: 60, 7: 400}, false},
+		"expadd 0":                {map[int64]any{0: 1, 1: 0}, true},
+		"expadd negative":         {map[int64]any{0: 1, 1: -1}, false},
+		"expadd NaN":              {map[int64]any{0: 1, 1: cbor.RawMessage{0xf9, 0x7e, 0x00}}, false},
+		"expadd beyond the limit": {map[int64]any{0: 1, 1: 10000000000000.5}, false},
+		"a text parameter key":    {map[any]any{int64(0): 1, int64(1): 60, "x": 1}, false},
+	} {
+		v := renewer()
+		tok, err := v.Validate(claimsToken(t, map[any]any{323: tc.catr}))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		r, err := v.Renew(tok, testNow)
+		if (r != nil) != tc.renew {
+			t.Errorf("%s: Renew = %v, %v; want a renewal %v", name, r, err, tc.renew)
+		}
+	}
+}
+
+// A negative renewal type is reserved for private use (section 4.9.2): unknown here, so ignored, not refused.
+func TestRenewIgnoresAPrivateType(t *testing.T) {
+	v := renewer()
+	tok, err := v.Validate(claimsToken(t, map[any]any{323: map[int64]any{0: -1, 1: 60}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, err := v.Renew(tok, testNow); r != nil || err != nil {
+		t.Errorf("Renew = %v, %v; want nothing and no error", r, err)
+	}
+}
+
+// Exactly at the deadline, the token is renewed.
+func TestRenewExactlyAtTheDeadline(t *testing.T) {
+	v := renewer()
+	tok, err := v.Validate(claimsToken(t, map[any]any{4: testNow.Unix() + 100, 323: map[int64]any{0: 1, 1: 60, 2: 30}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := v.Renew(tok, testNow.Add(70*time.Second)); r == nil {
+		t.Error("not renewed exactly at the deadline")
 	}
 }
