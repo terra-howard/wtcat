@@ -3,9 +3,17 @@
 *Working title.* A Go validator for the Common Access Token (CAT, CTA-5007), a CBOR Web Token format that CDNs use
 to decide whether a request may fetch content.
 
-**Status:** phase 1. Package `cwt` decodes CBOR Web Tokens and verifies COSE_Mac0 (HMAC 256/64 and 256/256) and
-COSE_Sign1 (ES256 and PS256), checks the validity window, and offers a `Verifier` with an algorithm allow-list,
-key lookup by `kid` and a clock. The parsers are fuzzed. The census gate is green. CAT's own claims come next.
+**Status:** phase 1 of [decision 0015](docs/decisions/0015-reconciling-with-cta-5007-b.md). Package `cwt` decodes
+CBOR Web Tokens and verifies COSE_Mac0 (HMAC 256/64 and 256/256) and COSE_Sign1 (ES256 and PS256), with a
+`Verifier` and, for profiles such as CAT, `VerifyMessage` with keys bound to one algorithm. Package `cat` validates
+Common Access Tokens: strict base64url, deterministic encoding, `iss`, `aud`, `exp` and `nbf` with no leeway, and
+`catv`. It refuses tokens carrying a claim CTA-5007-B requires recipients to enforce that it does not enforce yet
+(`catu`, `catm`, `cath`, `catnip`, `cnf`, `catdpop`), rather than ignoring the restriction. The full list of
+supported claims is in the package documentation. The parsers are fuzzed. The census gate is green.
+
+The specification is CTA-5007-B, *Common Access Token*, free to download from the
+[Consumer Technology Association](https://www.cta.tech/). This repository does not reproduce it
+([decision 0014](docs/decisions/0014-using-cta-5007-b-in-public.md)).
 
 There are two deliverables of equal weight: a validator worth using, and the development process it is built with, written down in [docs/explanation/process.md](docs/explanation/process.md)
 so later projects can reuse it.
