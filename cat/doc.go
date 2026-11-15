@@ -8,4 +8,6 @@
 //
 //	decode.go         the token's text form: strict base64url and the length limit
 //	deterministic.go  the deterministic-encoding check of section 4.5
+//	claims.go         Claims and the claim-set decoder: core claims, catv, tag rules, claims not yet enforced
+//	date.go           NumericDate, exact for integer and floating-point dates
 package cat
