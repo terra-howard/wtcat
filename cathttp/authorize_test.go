@@ -187,6 +187,7 @@ func TestMiddlewareMakesTheResponsePrivate(t *testing.T) {
 		{`no-cache="Set-Cookie, X-Token"`, `no-cache="Set-Cookie, X-Token", private`},
 		{`no-cache="a \"quoted, \\ value\"", public`, `no-cache="a \"quoted, \\ value\"", private`},
 		{`no-cache="x\", private, y"`, `no-cache="x\", private, y", private`}, // private here is inside the quotes
+		{`max-age=60, no-cache="unterminated\`, `max-age=60, no-cache="unterminated\, private`},
 	} {
 		h := authorizer().Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if tc.set != "" {

@@ -296,7 +296,7 @@ func directives(v string) []string {
 			start = i + 1
 		case v[i] == '"':
 			quoted = !quoted
-		case v[i] == '\\' && quoted:
+		case v[i] == '\\' && quoted && i+1 < len(v):
 			i++ // a quoted pair: the next character is literal
 		}
 	}
