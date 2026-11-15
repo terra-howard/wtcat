@@ -56,9 +56,22 @@ func TestParseItemParameterLimitsAndDisplayStrings(t *testing.T) {
 		`%""`: true, `%"plain text"`: true, `%"f%c3%bc%c3%bcr"`: true, `%"%22 and %25"`: true, `%"back\slash"`: true,
 		`%"F%C3%BC"`: false, `%"%c3"`: false, `%"%e"`: false, `%"%zz"`: false, `%"unterminated`: false,
 		"%\"tab\t\"": false, "%\"del\x7f\"": false, "%\"\xc3\xa9\"": false, `%x`: false, `%`: false,
+		`%"na%c3%afve"`: true, `%"%e`: false, `%"%`: false, `%"%z1"`: false, `%"%1z"`: false,
 	} {
 		if _, ok := parseItem("tok;a=" + value); ok != want {
 			t.Errorf("parameter value %q: accepted %v, want %v", value, ok, want)
+		}
+	}
+}
+
+// An sf-string may escape only a quote or a backslash (RFC 9651 Section 4.2.5).
+func TestParseItemStringEscapes(t *testing.T) {
+	if got, ok := parseItem(`"a\"b\\c"`); !ok || got != `a"b\c` {
+		t.Errorf(`parseItem("a\"b\\c") = %q, %v; want a"b\c`, got, ok)
+	}
+	for _, bad := range []string{`"a\x"`, `"a\`, `"\"`} {
+		if got, ok := parseItem(bad); ok {
+			t.Errorf("parseItem(%s) = %q, want it refused", bad, got)
 		}
 	}
 }

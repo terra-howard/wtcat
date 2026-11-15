@@ -5,6 +5,25 @@ import (
 	"testing"
 )
 
+// In a target in absolute form, the scheme and authority are skipped, so text there that looks like a parameter is
+// never a token; nor is anything in a fragment, even one that starts the path.
+func TestFindInTargetSkipsTheAuthorityAndTheFragment(t *testing.T) {
+	for target, want := range map[string][]string{
+		"http://h;CAT=abc/p":         nil,
+		"http://u;CAT=x@h/p?CAT=y":   {"y"},
+		"http://h#?CAT=x":            nil,
+		"https://h/a;CAT=p#;CAT=f?q": {"p"},
+	} {
+		var got []string
+		for _, l := range findInTarget(target, "CAT") {
+			got = append(got, l.Text)
+		}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("findInTarget(%q) = %q, want %q", target, got, want)
+		}
+	}
+}
+
 // Every token findInTarget reports lies where it says, right after its parameter name, and RemoveFromURI takes at
 // least the name, the "=" and a delimiter out of the target.
 func FuzzFindInTarget(f *testing.F) {

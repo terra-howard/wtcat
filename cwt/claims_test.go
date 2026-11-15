@@ -107,6 +107,9 @@ func TestDecodeClaimsDateEncodings(t *testing.T) {
 	}{
 		{"true", encode(t, map[int64]any{4: true}), cwt.ErrMalformed},
 		{"null", fromHex(t, "a104f6"), cwt.ErrMalformed}, // {4: null}
+		// A valid date this version cannot hold keeps its kind through the decoder (Gremlins, task 54).
+		{"a float beyond 64-bit seconds", encode(t, map[int64]any{4: 1e300}), cwt.ErrUnsupported},
+		{"a NaN float", fromHex(t, "a104f97e00"), cwt.ErrMalformed}, // {4: NaN as float16}
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

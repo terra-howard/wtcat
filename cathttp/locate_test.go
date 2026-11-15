@@ -143,6 +143,17 @@ func TestFindAuthorizationSchemes(t *testing.T) {
 
 // Section 4.6.10's removal rule: after a sub-delimiter, remove the name through that sub-delimiter; otherwise,
 // from the reserved character before the name through the token.
+// RemoveFromURI edits only path-style and form-style tokens. A token from any other place leaves the target as it
+// was, whatever offsets its Located carries.
+func TestRemoveFromURIIgnoresOtherPlaces(t *testing.T) {
+	const target = "/a?CAT=tok&x=1"
+	for _, where := range []cathttp.Place{cathttp.InField, cathttp.InCookie, cathttp.InAuthorization, cathttp.InDPoP} {
+		if got := cathttp.RemoveFromURI(target, cathttp.Located{Text: "tok", Where: where, Start: 3, End: 10}); got != target {
+			t.Errorf("place %d: RemoveFromURI = %q, want the target unchanged", where, got)
+		}
+	}
+}
+
 func TestRemoveFromURI(t *testing.T) {
 	for _, tc := range []struct{ uri, want string }{
 		{"https://h/a;CAT=tok/b", "https://h/a/b"},

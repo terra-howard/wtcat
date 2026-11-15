@@ -107,6 +107,18 @@ func TestMiddlewareRedirectRenewal(t *testing.T) {
 	}
 }
 
+// A path-style token is in the URI too, and a redirect keeps the status catr names.
+func TestMiddlewareRedirectRenewalOfAPathTokenWithItsStatus(t *testing.T) {
+	a := renewing()
+	tok := token(t, map[any]any{323: map[int64]any{0: 3, 1: 60, 7: 302}})
+	rec, called := serve(t, a, request("https://example.com/a;CAT="+tok+"/b", nil), nil)
+	loc := rec.Header().Get("Location")
+	if called || rec.Code != 302 || !strings.HasPrefix(loc, "https://example.com/a;CAT=") || !strings.HasSuffix(loc, "/b") || strings.Contains(loc, tok) {
+		t.Fatalf("handler called %v, status %d, Location %q", called, rec.Code, loc)
+	}
+	validRenewed(t, a, strings.TrimSuffix(strings.TrimPrefix(loc, "https://example.com/a;CAT="), "/b"))
+}
+
 // Automatic renewal goes back the way the token came (section 4.9.2.1).
 func TestMiddlewareAutomaticRenewal(t *testing.T) {
 	a := renewing()

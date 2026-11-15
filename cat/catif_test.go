@@ -1,6 +1,7 @@
 package cat_test
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"net/http"
@@ -59,6 +60,29 @@ func TestCatifStatusAndHeader(t *testing.T) {
 
 // Like the specification's second example: a token minted into the Location, with iss and iat filled in, and
 // catifdata carrying the URI.
+// Minting fills in only a null iss or iat. Values the claim set gives are kept, a one-byte iat included.
+func TestCatifMintKeepsTheValuesItIsGiven(t *testing.T) {
+	v := minting()
+	mint := map[int64]any{1: "given.example", 6: 5}
+	text := claimsToken(t, map[any]any{4: testNow.Unix() - 1, 322: map[int64]any{4: []any{302, map[string]any{"Location": []any{"x=", mint}}, "r1"}}})
+	resp := v.IfResponse(refusal(t, v, text, ifRequest()), ifRequest(), testNow)
+	if resp == nil || len(resp.Header.Get("Location")) <= len("x=") {
+		t.Fatalf("IfResponse = %+v", resp)
+	}
+	raw, _ := b64u.DecodeString(resp.Header.Get("Location")[len("x="):])
+	msg, err := cwt.VerifyMessage(raw, func([]byte) (cwt.Key, error) { return cwt.Key{Algorithm: cwt.HMAC256x256, Material: renewKey}, nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	var claims map[int64]cbor.RawMessage
+	if err := cbor.Unmarshal(msg.Payload, &claims); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(claims[1], enc(t, "given.example")) || !bytes.Equal(claims[6], enc(t, 5)) {
+		t.Errorf("minted iss, iat = %x, %x; want them kept as given", claims[1], claims[6])
+	}
+}
+
 func TestCatifMintsATokenIntoAHeader(t *testing.T) {
 	v := minting()
 	mint := map[int64]any{1: nil, 6: nil, 320: []any{1}}

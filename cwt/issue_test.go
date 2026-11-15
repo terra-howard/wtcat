@@ -72,6 +72,10 @@ func TestIssueRefuses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	big, err := rsa.GenerateKey(rand.Reader, 2048) // large enough that only the algorithm check can refuse it
+	if err != nil {
+		t.Fatal(err)
+	}
 	for name, key := range map[string]cwt.SigningKey{
 		"an unsupported algorithm":     {Algorithm: 999, Material: testKey},
 		"HMAC 256/64, not for issuing": {Algorithm: cwt.HMAC256x64, Material: testKey},
@@ -81,6 +85,8 @@ func TestIssueRefuses(t *testing.T) {
 		"a public key for ES256":       {Algorithm: cwt.ES256, Material: &ec.PublicKey},
 		"an RSA key below 2048 bits":   {Algorithm: cwt.PS256, Material: small},
 		"a nil RSA key":                {Algorithm: cwt.PS256, Material: (*rsa.PrivateKey)(nil)},
+		"an EC key for PS256":          {Algorithm: cwt.PS256, Material: ec},
+		"an RSA key for ES256":         {Algorithm: cwt.ES256, Material: big},
 	} {
 		if _, err := cwt.Issue([]byte{0xa0}, key); err == nil {
 			t.Errorf("%s: Issue succeeded", name)
