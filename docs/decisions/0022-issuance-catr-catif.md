@@ -45,6 +45,24 @@ would an expert build, and how far?
    header renewal sets the field as an RFC 9651 list of one string, unless the handler already set it; redirect
    renewal answers with the status (default 307, 300 to 399 only) and the URI with the token replaced, and applies
    only to tokens found in the URI.
-5. **`catif` (322)** follows, by an update to this record, once renewal is in place.
+5. **`catif` (322)** follows, by the update below, once renewal is in place.
 6. **Composition claims**, which section 4.3.1.5 mentions and other documents define, are not supported; a
    `catr` or `catif` is processed only in the base claim set.
+
+## Update, 2026-11-15: `catif`
+
+1. **Knowing why.** A refusal for an unacceptable claim becomes a `*cat.Unacceptable`, which carries the token and
+   the key of the claim that refused it, and still unwraps to the same error (`cat.ErrExpired` and the rest), so
+   existing `errors.Is` checks are unaffected. Invalid tokens never produce one, since section 4.9.1 forbids
+   processing `catif` for them.
+2. **`Validator.IfResponse(u, req, now)`** returns the status and header fields of the first `catif` member whose
+   key is, or lists, the refusing claim, or nil. Header values that are arrays are built as section 4.9.1 says:
+   strings as they are; 0 becomes the requested URI and 1 the URI with the token removed, both base64url; 2 a CBOR
+   list of the refusing claim's key, base64url; other integers the empty string; and maps become CATs: `iss` null
+   is filled with `Issuance.Issuer`, `iat` null with now, `catifdata` processed as the section describes, and the
+   result signed with the key the action's `kid` names. Without `Issuance`, or if that key cannot be had, a map
+   becomes the empty string, as the section allows. A `catif` that is malformed yields no response, never a
+   different refusal.
+3. **`cathttp`** answers a refused request with that response when there is one, and with 401 otherwise. Its
+   header fields are set on a response that has none yet, so section 4.9.1's rule against overwriting is met.
+
