@@ -15,7 +15,8 @@ import (
 // (decision 0016), so a date read by either package means the same thing.
 type NumericDate = cwt.NumericDate
 
-// Claims are the claims phase 1 decodes (decision 0015). Absent claims are nil, except Version.
+// Claims are the decoded claims a caller can read. Absent claims are nil, except Version. Other claims this package
+// enforces, such as catu, catnip and cnf, are kept unexported.
 type Claims struct {
 	Issuer    *string      // iss (1)
 	Subject   *string      // sub (2)
@@ -71,10 +72,6 @@ const (
 	claimCatm      = 313
 	claimCath      = 315
 )
-
-// notYetEnforced lists the claims a recipient must support (section 4.5) that phase 1 does not enforce yet. A token
-// carrying one is refused, never accepted with the restriction ignored (decision 0015).
-var notYetEnforced = map[int64]string{} // none at present: phase 3 enforces cnf and catdpop
 
 // decMode decodes claims strictly: duplicate map keys, invalid UTF-8 and indefinite lengths are refused.
 var decMode = func() cbor.DecMode {
@@ -139,9 +136,6 @@ func decodeClaims(payload []byte) (*Claims, error) {
 			continue // a text-keyed claim is one this package does not understand
 		default:
 			return nil, malformed("claim key of type %T", k)
-		}
-		if name, ok := notYetEnforced[key]; ok {
-			return nil, unsupported("claim %d (%s) must be enforced, and this version does not enforce it yet", key, name)
 		}
 		if err := c.decodeClaim(key, value); err != nil {
 			return nil, err

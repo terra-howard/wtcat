@@ -72,8 +72,8 @@ default:
 }
 ```
 
-CTA-5007-B separates *valid* tokens from *acceptable* ones, and a later version of this package will act on the
-`catif` claim only for tokens that are valid but unacceptable. Keep that distinction in your handling now.
+CTA-5007-B separates *valid* tokens from *acceptable* ones. Only an acceptable token grants access, and only a valid
+but unacceptable one may be answered as its `catif` claim asks (step 4); an invalid token is simply refused.
 
 ## 4. Renew tokens and answer refusals (optional)
 

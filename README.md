@@ -37,4 +37,4 @@ so later projects can reuse it.
 - [AGENTS.md](AGENTS.md) is the steering file every coding agent reads first.
 
 Documentation follows [Diátaxis](https://diataxis.fr/): tutorials, how-to guides, reference and explanation, kept
-as separate pages. So far there is explanation, a how-to guide, reference and decision records.
+as separate pages, plus decision records.

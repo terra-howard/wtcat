@@ -1,6 +1,6 @@
 // Package cat validates Common Access Tokens (CTA-5007-B), built on package cwt.
 //
-// The package is at phase 1 of decision 0015 (docs/decisions/0015-reconciling-with-cta-5007-b.md). Section numbers
+// The package covers phases 1 to 4 of decision 0015 (docs/decisions/0015-reconciling-with-cta-5007-b.md). Section numbers
 // in comments refer to CTA-5007-B, which is free to download from CTA and is not reproduced here (decision 0014).
 //
 // # Claims this version supports
@@ -61,7 +61,7 @@
 //	dpop.go           DPoP proofs: compact JWS with ES256 or PS256, keys from jwk, RFC 7638 thumbprints (decision 0020)
 //	decode.go         the token's text form: strict base64url and the length limit
 //	deterministic.go  the deterministic-encoding check of section 4.5
-//	claims.go         Claims and the claim-set decoder: core claims, catv, tag rules, claims not yet enforced
+//	claims.go         Claims and the claim-set decoder: the claims, their tag rules, and NumericDate
 //
 //	helpers_test.go   token builders shared by the external tests
 //	example_test.go   ExampleValidator, checked by go test

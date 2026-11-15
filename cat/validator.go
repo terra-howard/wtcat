@@ -38,7 +38,7 @@ type Key struct {
 // tokens without a kid (section 4.3.1.1.1 allows it) returns an error for nil.
 type KeyFunc func(kid []byte) (Key, error)
 
-// Validator validates CATs: phase 1 of decision 0015.
+// Validator validates CATs (decision 0015 and the decisions after it).
 type Validator struct {
 	Keys      KeyFunc          // required
 	Audiences []string         // the names this recipient answers to; a token's aud must name one of them
@@ -65,10 +65,11 @@ type Token struct {
 // Validate checks that a token, in its text form, is valid and acceptable to this recipient now, and returns it.
 //
 // Valid means base64url within the length limit, deterministically encoded, verified with the key for its kid,
-// and carrying claims of the right syntax, none of them a required claim this version does not yet enforce.
-// Acceptable means iss names the key's issuer, aud names this recipient, and the current time is before exp and
-// not before nbf, with no leeway. Absent claims are not checked. Claims this version does not support are
-// ignored, as section 4.5 requires; the package documentation lists those it enforces.
+// and carrying claims of the right syntax, none asking for something this version cannot check. Acceptable means
+// every claim it enforces is satisfied, starting with iss naming the key's issuer, aud naming this recipient, and
+// the current time before exp and not before nbf, with no leeway. Absent claims are not checked. Claims this
+// version does not support are ignored, as section 4.5 requires; the package documentation lists those it
+// enforces. Validate has no request, so it refuses tokens with request claims; use ValidateRequest for those.
 func (v *Validator) Validate(token string) (*Token, error) { return v.validate(token, nil) }
 
 func (v *Validator) validate(token string, req *Request) (*Token, error) {
