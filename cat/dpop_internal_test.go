@@ -174,3 +174,16 @@ func TestParseProofRefuses(t *testing.T) {
 		})
 	}
 }
+
+func TestPublicKeyRSAExponents(t *testing.T) {
+	n := make([]byte, 256) // a 2048-bit modulus; publicKey checks shape, not primality
+	n[0] = 0xc0
+	for e, want := range map[string]bool{"Aw": true, "AQAB": true, "Ag": false, "AQ": false, "AQAAAAAB": false} {
+		jwk := map[string]json.RawMessage{
+			"kty": json.RawMessage(`"RSA"`), "n": json.RawMessage(`"` + b64.EncodeToString(n) + `"`), "e": json.RawMessage(`"` + e + `"`),
+		}
+		if _, err := publicKey(jwk, "PS256"); (err == nil) != want {
+			t.Errorf("exponent %s: err = %v, want accepted %v", e, err, want)
+		}
+	}
+}

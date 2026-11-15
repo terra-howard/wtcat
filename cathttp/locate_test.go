@@ -153,6 +153,7 @@ func TestRemoveFromURI(t *testing.T) {
 		{"https://h/a?CAT=tok", "https://h/a"},
 		{"https://h/a?x=1&CAT=tok&y=2", "https://h/a?x=1&y=2"},
 		{"https://h/a?CAT=tok#f", "https://h/a#f"},
+		{"https://h/a?CAT=tok!x", "https://h/a?x"}, // "!" is the first sub-delimiter
 	} {
 		got, err := cathttp.Find(request(tc.uri, nil), cathttp.Options{})
 		if err != nil || len(got) != 1 {
@@ -169,6 +170,41 @@ func TestFindIgnoresTheFragment(t *testing.T) {
 	for _, target := range []string{"https://cdn.example/a#;CAT=no", "https://cdn.example/a?x=1#&CAT=no"} {
 		if got, err := cathttp.Find(request(target, nil), cathttp.Options{}); err != nil || len(got) != 0 {
 			t.Errorf("%s: found %v, %v; want nothing", target, summary(got), err)
+		}
+	}
+}
+
+func TestFindInAbsoluteFormTargets(t *testing.T) {
+	for target, want := range map[string][]found{
+		"https://example.com?CAT=q":         {{"q", cathttp.InQuery}},
+		"https://example.com/p;CAT=a?CAT=b": {{"a", cathttp.InPath}, {"b", cathttp.InQuery}},
+		"https://example.com":               nil,
+	} {
+		got, err := cathttp.Find(request(target, nil), cathttp.Options{})
+		if err != nil {
+			t.Errorf("%s: %v", target, err)
+			continue
+		}
+		if g := summary(got); len(g) != len(want) {
+			t.Errorf("%s: found %v, want %v", target, g, want)
+		} else {
+			for i := range want {
+				if g[i] != want[i] {
+					t.Errorf("%s: token %d = %v, want %v", target, i, g[i], want[i])
+				}
+			}
+		}
+	}
+}
+
+func TestFindKeepsAtMostTwoPaddingCharacters(t *testing.T) {
+	for target, want := range map[string]string{
+		"https://example.com/?CAT=ab==&x=1": "ab==",
+		"https://example.com/?CAT=ab===":    "ab==",
+	} {
+		got, err := cathttp.Find(request(target, nil), cathttp.Options{})
+		if err != nil || len(got) != 1 || got[0].Text != want {
+			t.Errorf("%s: found %v, %v; want %q", target, summary(got), err, want)
 		}
 	}
 }

@@ -222,6 +222,8 @@ func TestDecodeClaimsRejectsMalformed(t *testing.T) {
 		{"catdpop not a map", enc(t, map[int64]any{321: []any{}})},
 		{"catdpop with a text key", enc(t, map[int64]any{321: map[string]any{"window": 1}})},
 		{"catdpop crit listing window", enc(t, map[int64]any{321: map[int64]any{-1: []int64{0}}})},
+		{"catdpop crit listing crit", enc(t, map[int64]any{321: map[int64]any{-1: []int64{-1}}})},
+		{"catdpop crit listing jti", enc(t, map[int64]any{321: map[int64]any{-1: []int64{1}}})},
 		{"catdpop crit not an array", enc(t, map[int64]any{321: map[int64]any{-1: 5}})},
 		{"catdpop window not an unsigned integer", enc(t, map[int64]any{321: map[int64]any{0: "60"}})},
 		{"catdpop jti not an unsigned integer", enc(t, map[int64]any{321: map[int64]any{1: -1}})},
@@ -257,6 +259,8 @@ func TestDecodeClaimsRefusesUnsupported(t *testing.T) {
 		{"cnf without jkt", enc(t, map[int64]any{8: map[int64]any{}})},
 		{"cnf with another confirmation method", enc(t, map[int64]any{8: map[int64]any{323: make([]byte, 32), 1: map[int64]any{}}})},
 		{"catdpop with a critical setting this version does not know", enc(t, map[int64]any{321: map[int64]any{-1: []int64{5}}})},
+		{"catdpop crit listing 2", enc(t, map[int64]any{321: map[int64]any{-1: []int64{2}}})},
+		{"catdpop crit listing -2", enc(t, map[int64]any{321: map[int64]any{-1: []int64{-2}}})},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

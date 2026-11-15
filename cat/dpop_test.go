@@ -90,6 +90,7 @@ func TestDPoPProofs(t *testing.T) {
 		{"another path", bound, dpopRequest(k.proof(t, func(p map[string]any) { p["htu"] = "https://cdn.example/b.ts" })), cat.ErrProof},
 		{"htu ignores the query, and is normalized", bound, dpopRequest(k.proof(t, func(p map[string]any) { p["htu"] = "HTTPS://CDN.EXAMPLE:443/a.ts?x=1" })), nil},
 		{"iat inside the default 60 s window", bound, dpopRequest(k.proof(t, func(p map[string]any) { p["iat"] = testNow.Unix() - 59 })), nil},
+		{"iat exactly at the window's edge", bound, dpopRequest(k.proof(t, func(p map[string]any) { p["iat"] = testNow.Unix() - 60 })), nil},
 		{"iat outside it, before", bound, dpopRequest(k.proof(t, func(p map[string]any) { p["iat"] = testNow.Unix() - 61 })), cat.ErrProof},
 		{"iat outside it, after", bound, dpopRequest(k.proof(t, func(p map[string]any) { p["iat"] = testNow.Unix() + 61 })), cat.ErrProof},
 		{"catdpop's window widens it", windowed, dpopRequest(k.proof(t, func(p map[string]any) { p["iat"] = testNow.Unix() - 200 })), nil},
