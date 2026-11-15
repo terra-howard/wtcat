@@ -131,6 +131,14 @@ Each prediction is committed before its task starts. *Outcome* states a checkabl
 | 48. Documentation: how-to guides for deploying behind a proxy and running the CTA example tests, and the `Authorizer.Location` option writing them showed was missing | 0 | 8 min | the new option's test passes on the first compiled run, about 80%; every snippet in the guides compiles, checked in a temporary test, about 70% | 0 | about 1 min (08:16:56 to 08:18:09) | both held: the `Location` option's test passed on the first compiled run, and every snippet in the proxy guide compiled in a temporary test with its placeholders stubbed, its `X-Forwarded-For` reading picking the address the proxy appended. While adding the option, the connection and location are now computed once per request rather than once per token |
 | 49. Documentation: an errors reference page | 0 | 6 min | the page lists exactly the exported errors the code defines, checked by script in both directions, about 80% | 0 | about 1 min (08:18:32 to 08:19:17) | held: the page lists exactly the 22 exported errors the code defines, none missing in either direction, checked by script, with no em-dash. Its first check script failed to run, because the shell stripped a backslash; it moved into a file |
 
+## 2026-11-15: a polish pass at the owner's ask, decision 0023
+
+Each prediction is committed before its task starts. *Outcome* states a checkable claim with a confidence.
+
+| Task | Predicted rounds | Predicted time | Predicted outcome | Actual rounds | Actual time | Actual outcome |
+|---|---|---|---|---|---|---|
+| 50. Polish `cwt`: one verification path for `Verifier` and `VerifyMessage`, the error helpers used throughout, `Algorithm.String`, an `Issue` example, and an accurate file map (prediction committed at 09:36:47) | 1 | 10 min | every existing test name still exists and passes, checked by diffing `go test -list`, about 90%; the census stays green with the protected tests unchanged, about 95%; the new example passes on its first compiled run, about 70% | | | |
+
 ## Gremlins, task 20
 
 Same command as task 11, on `./cat` and then `./cwt`.
