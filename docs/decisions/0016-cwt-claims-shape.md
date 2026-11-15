@@ -1,7 +1,8 @@
 # 0016. Giving `cwt.Claims` the shape RFC 8392 allows
 
-- **Status:** proposed, 2026-11-14
-- **Decision needed from:** Terra Howard, because every option but D changes protected tests
+- **Status:** accepted, 2026-11-14 (proposed the same day): option A, delivered as a patch for the owner to apply
+- **Decided by:** Claude, under Terra Howard's delegation, widened the same evening to forks first set aside for her;
+  pending her review. The protected-test edit itself remains hers (AGENTS.md rule 1, decision 0003).
 
 ## Context
 
@@ -45,3 +46,22 @@ README.
 The owner edits `conformance/rfc8392_test.go` and `conformance/MANIFEST` (new hash from
 `go run ./cmd/census hash conformance/rfc8392_test.go`) in one commit citing this decision. Agents then change
 `cwt` to match, with the census gate as the check that nothing the RFC promises was lost.
+
+## Decision
+
+A. An agent may not edit protected tests, so the change is prepared as one patch, `0016-claims-shape.patch` in this
+directory, covering `cwt`, the protected tests and the manifest's new hash. It was checked in a scratch copy of the
+repository: it applies cleanly, the census is green after it, and every other test passes. The owner applies it
+with `git apply docs/decisions/0016-claims-shape.patch` and commits it citing this decision. The patch was made
+against commit `d95131e`; if later commits touch the same lines in `cwt`, it may need regenerating, which an agent
+can do without touching the protected files in the repository. The protected tests' expected values are
+unchanged: only the way they read `aud` and the dates changes. Until then, the README
+lists the `aud` defect, which is option D's holding position.
+
+## Reasoning
+
+The recommendation above stands: the package is unpublished, the protected tests check the same RFC values after
+the change, and two fields per claim (B) would cost every reader. Preparing the patch rather than waiting is what
+an expert does when the change needs someone else's hands: the reviewer gets a finished, verified change and one
+command, not a description of one.
+

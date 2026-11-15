@@ -11,6 +11,10 @@ Common Access Tokens: strict base64url, deterministic encoding, `iss`, `aud`, `e
 which CTA-5007-B requires recipients to enforce and which need DPoP, not built yet, rather than ignoring them. The full list of
 supported claims is in the package documentation. The parsers are fuzzed. The census gate is green.
 
+**Known defect in `cwt`:** it rejects an `aud` claim that is an array, and refuses floating-point dates, although RFC
+8392 allows both. The fix changes protected tests, so it waits as a ready patch for the owner
+([decision 0016](docs/decisions/0016-cwt-claims-shape.md)). Package `cat` is not affected; it decodes claims itself.
+
 The specification is CTA-5007-B, *Common Access Token*, free to download from the
 [Consumer Technology Association](https://www.cta.tech/). This repository does not reproduce it
 ([decision 0014](docs/decisions/0014-using-cta-5007-b-in-public.md)). If you have a copy, you can run the tests
