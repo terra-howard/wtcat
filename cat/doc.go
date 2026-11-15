@@ -6,5 +6,6 @@
 // Where things are. Each source file's tests are in the test file of the same name; tests that need the package's
 // internals are in the matching _internal_test.go file.
 //
-//	decode.go  the token's text form: strict base64url and the length limit
+//	decode.go         the token's text form: strict base64url and the length limit
+//	deterministic.go  the deterministic-encoding check of section 4.5
 package cat
