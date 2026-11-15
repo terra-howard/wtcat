@@ -11,7 +11,7 @@
 //	mac0.go      VerifyMac0 and the MAC structure
 //	sign1.go     VerifySign1, ES256, PS256 and the signature structure
 //	time.go      Claims.CheckTime
-//	date.go      NumericDate, exact for integer and floating-point dates (decision 0016)
+//	date.go      NumericDate, exact for integer and floating-point dates (decision 0016); package cat uses it too
 //	verifier.go  Verifier
 //	message.go   VerifyMessage, Key and Message: keys bound to one algorithm, alg optional (decision 0015)
 //

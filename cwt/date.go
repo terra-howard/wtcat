@@ -40,15 +40,15 @@ func (d NumericDate) Compare(t time.Time) int {
 	return 0
 }
 
-// dateFromFloat converts a floating-point date: NaN and infinities are malformed, and dates outside the range of
-// 64-bit seconds are unsupported.
-func dateFromFloat(f float64, key int64) (*NumericDate, error) {
+// NumericDateFromFloat converts a floating-point date exactly. NaN and infinities are malformed (ErrMalformed), and
+// dates outside the range of 64-bit seconds are unsupported (ErrUnsupported).
+func NumericDateFromFloat(f float64) (*NumericDate, error) {
 	if math.IsNaN(f) || math.IsInf(f, 0) {
-		return nil, fmt.Errorf("%w: claim %d is not a finite date", ErrMalformed, key)
+		return nil, fmt.Errorf("%w: date %v is not finite", ErrMalformed, f)
 	}
 	floor := math.Floor(f)
 	if floor < math.MinInt64 || floor >= math.MaxInt64 { // MaxInt64 rounds up to 2^63 as a float64
-		return nil, fmt.Errorf("%w: claim %d is outside the range of 64-bit seconds", ErrUnsupported, key)
+		return nil, fmt.Errorf("%w: date %v is outside the range of 64-bit seconds", ErrUnsupported, f)
 	}
 	frac := f - floor
 	if frac >= 1 { // a tiny negative date, whose fraction rounds to 1; keep it below 1

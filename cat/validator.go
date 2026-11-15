@@ -120,10 +120,10 @@ func (v *Validator) validate(token string, req *Request) (*Token, error) {
 		now = v.Now
 	}
 	t := now()
-	if claims.Expiry != nil && claims.Expiry.compare(t) >= 0 {
+	if claims.Expiry != nil && claims.Expiry.Compare(t) >= 0 {
 		return nil, ErrExpired
 	}
-	if claims.NotBefore != nil && claims.NotBefore.compare(t) < 0 {
+	if claims.NotBefore != nil && claims.NotBefore.Compare(t) < 0 {
 		return nil, ErrNotYetValid
 	}
 	if err := checkRequest(claims, req); err != nil {

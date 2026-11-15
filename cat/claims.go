@@ -11,6 +11,10 @@ import (
 	"github.com/terra-howard/wtcat/cwt"
 )
 
+// NumericDate is a CWT date, held exactly whether encoded as an integer or a float. It is package cwt's type
+// (decision 0016), so a date read by either package means the same thing.
+type NumericDate = cwt.NumericDate
+
 // Claims are the claims phase 1 decodes (decision 0015). Absent claims are nil, except Version.
 type Claims struct {
 	Issuer    *string      // iss (1)
@@ -270,13 +274,13 @@ func decodeDate(value cbor.RawMessage, key int64) (*NumericDate, error) {
 		if u > math.MaxInt64 {
 			return nil, unsupported("claim %d is outside the range of 64-bit seconds", key)
 		}
-		return &NumericDate{sec: int64(u)}, nil
+		return cwt.NewNumericDate(int64(u)), nil
 	case majorNegative:
 		var i int64
 		if err := decMode.Unmarshal(value, &i); err != nil { // only a value below -2^63 fails here
 			return nil, unsupported("claim %d is outside the range of 64-bit seconds", key)
 		}
-		return &NumericDate{sec: i}, nil
+		return cwt.NewNumericDate(i), nil
 	case majorSimple:
 		if info := value[0] & 0x1f; info < 25 || info > 27 {
 			return nil, malformed("claim %d is not a date", key)
@@ -285,11 +289,7 @@ func decodeDate(value cbor.RawMessage, key int64) (*NumericDate, error) {
 		if err := decMode.Unmarshal(value, &f); err != nil {
 			return nil, err
 		}
-		d, err := dateFromFloat(f)
-		if err != nil {
-			return nil, err
-		}
-		return &d, nil
+		return cwt.NumericDateFromFloat(f)
 	default:
 		return nil, malformed("claim %d is not a date", key)
 	}

@@ -124,7 +124,11 @@ func decodeDate(raw []byte, key int64) (*NumericDate, error) {
 		if err := decMode.Unmarshal(raw, &f); err != nil {
 			return nil, fmt.Errorf("%w: claim %d: %v", ErrMalformed, key, err)
 		}
-		return dateFromFloat(f, key)
+		d, err := NumericDateFromFloat(f)
+		if err != nil {
+			return nil, fmt.Errorf("claim %d: %w", key, err)
+		}
+		return d, nil
 	case majorType(raw) != majorUnsigned && majorType(raw) != majorNegative:
 		return nil, fmt.Errorf("%w: claim %d is not a date", ErrMalformed, key)
 	}

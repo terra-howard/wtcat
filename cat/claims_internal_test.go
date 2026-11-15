@@ -305,8 +305,8 @@ func FuzzDecodeClaims(f *testing.F) {
 			t.Fatal("nil claims with nil error")
 		}
 		for _, d := range []*NumericDate{c.Expiry, c.NotBefore, c.IssuedAt} {
-			if d != nil && !(d.frac >= 0 && d.frac < 1) {
-				t.Fatalf("fraction %v is outside [0, 1)", d.frac)
+			if d != nil && !(d.Fraction() >= 0 && d.Fraction() < 1) {
+				t.Fatalf("fraction %v is outside [0, 1)", d.Fraction())
 			}
 		}
 	})
