@@ -6,24 +6,24 @@ import (
 	"strings"
 )
 
-// Location says where a token was found (CTA-5007-B section 4.4).
-type Location int
+// Place says where in a request a token was found (CTA-5007-B section 4.4).
+type Place int
 
-// Locations, in the order section 4.4 processes them after the field.
+// Places, in the order section 4.4 processes them after the field.
 const (
-	InField         Location = iota // the CTA-Common-Access-Token field, or the configured one
-	InPath                          // a path-style parameter, ;CAT=
-	InQuery                         // a form-style parameter, ?CAT= or &CAT=
-	InCookie                        // a cookie
-	InAuthorization                 // Authorization: Bearer
-	InDPoP                          // Authorization: DPoP (RFC 9449 Section 7), checked with its proof
+	InField         Place = iota // the CTA-Common-Access-Token field, or the configured one
+	InPath                       // a path-style parameter, ;CAT=
+	InQuery                      // a form-style parameter, ?CAT= or &CAT=
+	InCookie                     // a cookie
+	InAuthorization              // Authorization: Bearer
+	InDPoP                       // Authorization: DPoP (RFC 9449 Section 7), checked with its proof
 )
 
 // Located is a token and where it was found. For InPath and InQuery, Start is the offset of the parameter name and
 // End the offset just past the token, both in the request target Find scanned.
 type Located struct {
 	Text       string
-	Where      Location
+	Where      Place
 	Start, End int
 }
 

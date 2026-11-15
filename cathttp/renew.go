@@ -66,13 +66,14 @@ func (a *Authorizer) planRenewal(r *http.Request, tok *cat.Token, loc Located, o
 		if !isToken(headerName) {
 			return "", 0, nil
 		}
-		value := `"` + ren.Token + `"`
+		item := []string{`"` + ren.Token + `"`}
 		for _, p := range ren.HeaderParams {
 			if rest, ok := skipParameter(p); !ok || rest != "" {
 				return "", 0, nil // not an RFC 9651 parameter
 			}
-			value += ";" + p
+			item = append(item, p)
 		}
+		value := strings.Join(item, ";")
 		return "", 0, func(h http.Header) {
 			if len(h.Values(headerName)) == 0 {
 				h.Set(headerName, value)

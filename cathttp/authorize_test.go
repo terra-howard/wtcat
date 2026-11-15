@@ -173,6 +173,53 @@ func TestMiddlewareGrants(t *testing.T) {
 	}
 }
 
+// Only an unqualified private keeps a shared cache from storing a response: a private naming fields lets it store
+// the rest (RFC 9111 Section 5.2.2.7). Directives are split outside quoted strings, which may hold commas.
+func TestMiddlewareMakesTheResponsePrivate(t *testing.T) {
+	good := token(t, map[any]any{4: future})
+	for _, tc := range []struct{ set, want string }{
+		{"", "private"},
+		{"public, max-age=60", "max-age=60, private"},
+		{"private, max-age=60", "private, max-age=60"},
+		{"max-age=60, Private", "max-age=60, Private"},
+		{`private="Set-Cookie", max-age=60`, "max-age=60, private"},
+		{`max-age=60, private="Set-Cookie, X-Token"`, "max-age=60, private"},
+		{`no-cache="Set-Cookie, X-Token"`, `no-cache="Set-Cookie, X-Token", private`},
+		{`no-cache="a \"quoted, \\ value\"", public`, `no-cache="a \"quoted, \\ value\"", private`},
+		{`no-cache="x\", private, y"`, `no-cache="x\", private, y", private`}, // private here is inside the quotes
+	} {
+		h := authorizer().Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if tc.set != "" {
+				w.Header().Set("Cache-Control", tc.set)
+			}
+		}))
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, request("https://example.com/x", map[string][]string{"Cta-Common-Access-Token": {`"` + good + `"`}}))
+		if got := strings.Join(rec.Result().Header.Values("Cache-Control"), ", "); got != tc.want {
+			t.Errorf("handler set %q: Cache-Control = %q, want %q", tc.set, got, tc.want)
+		}
+	}
+}
+
+// A streaming handler can flush through the middleware. A flush before any write sends the header, private.
+func TestMiddlewareFlushes(t *testing.T) {
+	good := token(t, map[any]any{4: future})
+	h := authorizer().Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f, ok := w.(http.Flusher)
+		if !ok {
+			t.Error("the middleware's writer is not an http.Flusher")
+			return
+		}
+		f.Flush()
+		w.Header().Set("Cache-Control", "public") // too late to matter: the header has been sent
+	}))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, request("https://example.com/x", map[string][]string{"Cta-Common-Access-Token": {`"` + good + `"`}}))
+	if !rec.Flushed || rec.Code != http.StatusOK || rec.Result().Header.Get("Cache-Control") != "private" {
+		t.Errorf("flushed %v, status %d, Cache-Control %q", rec.Flushed, rec.Code, rec.Result().Header.Get("Cache-Control"))
+	}
+}
+
 func TestMiddlewareRemovesABearerToken(t *testing.T) {
 	a := authorizer()
 	a.Options.Bearer = true

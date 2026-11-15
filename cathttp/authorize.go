@@ -3,6 +3,7 @@ package cathttp
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -73,16 +74,16 @@ func (a *Authorizer) authorize(r *http.Request) (*cat.Token, Located, *cat.Reque
 		asn = a.ClientASN(ip)
 	}
 	conn := a.connection(r)
-	var place *cat.Location
+	var client *cat.Location
 	if a.Location != nil {
-		place = a.Location(r) // once per request: a lookup can be costly
+		client = a.Location(r) // once per request: a lookup can be costly
 	}
 	var firstErr, firstUnacceptable error
 	var firstReq, unacceptableReq *cat.Request
 	for _, t := range tokens {
 		req := &cat.Request{
 			Method: r.Method, URI: a.absolute(r, RemoveFromURI(target, t)), Header: r.Header, ClientIP: ip, ClientASN: asn,
-			ReceivedURI: a.absolute(r, target), ViaDPoPScheme: t.Where == InDPoP, Connection: conn, Location: place,
+			ReceivedURI: a.absolute(r, target), ViaDPoPScheme: t.Where == InDPoP, Connection: conn, Location: client,
 		}
 		tok, err := a.Validator.ValidateRequest(t.Text, req)
 		if err == nil {
@@ -162,8 +163,9 @@ func (a *Authorizer) clientIP(r *http.Request) netip.Addr {
 	return ip
 }
 
-// Middleware passes requests with an acceptable token to next, and answers others with 401. Whenever it has
-// processed a token, it adds the private directive to the response's Cache-Control (section 4.3.1.5.1). It removes
+// Middleware passes requests with an acceptable token to next, and answers others with 401, or as a refused
+// token's catif asks. Whenever it has processed a token, it makes the response's Cache-Control private (section
+// 4.3.1.5.1), and it conveys any renewal the accepted token's catr asks for (section 4.9.2). It removes
 // the token field, the token cookie and a token-bearing authorization field from the request it forwards; tokens in
 // the URI stay, since rewriting the forwarded path changes what upstream sees. It panics if the Authorizer is
 // misconfigured. Use it only for content that requires a CAT (section 4.3.1.4).
@@ -183,9 +185,7 @@ func (a *Authorizer) Middleware(next http.Handler) http.Handler {
 			var u *cat.Unacceptable
 			if errors.As(err, &u) {
 				if resp := a.Validator.IfResponse(u, judged, a.now()); resp != nil { // section 4.9.1
-					for name, values := range resp.Header {
-						pw.Header()[name] = values
-					}
+					maps.Copy(pw.Header(), resp.Header)
 					pw.WriteHeader(resp.Status)
 					return
 				}
@@ -208,6 +208,9 @@ func (a *Authorizer) Middleware(next http.Handler) http.Handler {
 			forwarded.Header.Del("Authorization")
 		}
 		next.ServeHTTP(pw, forwarded)
+		if !pw.wroteHeader {
+			pw.WriteHeader(http.StatusOK) // the server would write it otherwise, without the private directive
+		}
 	})
 }
 
@@ -222,8 +225,8 @@ func removeCookie(r *http.Request, name string) {
 	}
 }
 
-// privateWriter makes sure the response's Cache-Control carries the private directive, whatever the handler set,
-// dropping a conflicting public directive.
+// privateWriter makes sure the response's Cache-Control carries an unqualified private directive, whatever the
+// handler set, just before the header is written.
 type privateWriter struct {
 	http.ResponseWriter
 	wroteHeader bool
@@ -248,23 +251,54 @@ func (p *privateWriter) Write(b []byte) (int, error) {
 	return p.ResponseWriter.Write(b)
 }
 
+// Flush sends the header, if it has not been sent, and whatever has been written, for handlers that stream.
+func (p *privateWriter) Flush() {
+	if !p.wroteHeader {
+		p.WriteHeader(http.StatusOK)
+	}
+	_ = http.NewResponseController(p.ResponseWriter).Flush() // nothing to do if the writer cannot flush
+}
+
 // Unwrap lets http.ResponseController reach the underlying writer.
 func (p *privateWriter) Unwrap() http.ResponseWriter { return p.ResponseWriter }
 
+// ensurePrivate leaves a Cache-Control with an unqualified private directive alone. Otherwise it drops public and
+// any private that names fields, since that one lets a shared cache store the rest of the response (RFC 9111
+// Section 5.2.2.7), and adds private.
 func ensurePrivate(h http.Header) {
 	var kept []string
 	for _, v := range h.Values("Cache-Control") {
-		for _, d := range strings.Split(v, ",") {
-			d = strings.TrimSpace(d)
-			name, _, _ := strings.Cut(d, "=")
+		for _, d := range directives(v) {
+			name, _, qualified := strings.Cut(d, "=")
 			switch {
-			case d == "", strings.EqualFold(name, "public"):
-			case strings.EqualFold(name, "private"):
+			case strings.EqualFold(name, "private") && !qualified:
 				return // already private
+			case strings.EqualFold(name, "private"), strings.EqualFold(name, "public"):
 			default:
 				kept = append(kept, d)
 			}
 		}
 	}
 	h.Set("Cache-Control", strings.Join(append(kept, "private"), ", "))
+}
+
+// directives splits a Cache-Control field line at the commas outside quoted strings (RFC 9110 Section 5.6.4),
+// trimming each directive and dropping empty ones.
+func directives(v string) []string {
+	var out []string
+	start, quoted := 0, false
+	for i := 0; i <= len(v); i++ {
+		switch {
+		case i == len(v) || v[i] == ',' && !quoted:
+			if d := strings.TrimSpace(v[start:i]); d != "" {
+				out = append(out, d)
+			}
+			start = i + 1
+		case v[i] == '"':
+			quoted = !quoted
+		case v[i] == '\\' && quoted:
+			i++ // a quoted pair: the next character is literal
+		}
+	}
+	return out
 }

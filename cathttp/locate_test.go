@@ -21,7 +21,7 @@ func request(target string, header map[string][]string) *http.Request {
 
 type found struct {
 	text  string
-	where cathttp.Location
+	where cathttp.Place
 }
 
 func summary(ls []cathttp.Located) []found {

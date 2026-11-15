@@ -1,6 +1,9 @@
 package cathttp
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 // parseItem parses a Structured Field item (RFC 9651 Section 4.2.3) whose bare item is a token or a string, as
 // section 4.4.2 requires of the token field, and returns that value. Parameters are parsed, so that a malformed one
@@ -67,7 +70,7 @@ func parseToken(s string) (value, rest string) {
 	return s[:i], s[i:]
 }
 
-// skipParameter skips one parameter: a key and an optional bare item of any type RFC 9651 defines here.
+// skipParameter skips one parameter: a key and an optional bare item of any type RFC 9651 defines (Section 3.1.2).
 func skipParameter(s string) (string, bool) {
 	if s == "" || !('a' <= s[0] && s[0] <= 'z' || s[0] == '*') {
 		return "", false
@@ -87,6 +90,8 @@ func skipParameter(s string) (string, bool) {
 	case s[0] == '"':
 		_, rest, ok := parseString(s)
 		return rest, ok
+	case strings.HasPrefix(s, `%"`):
+		return skipDisplayString(s)
 	case isAlpha(s[0]) || s[0] == '*':
 		_, rest := parseToken(s)
 		return rest, true
@@ -106,31 +111,71 @@ func skipParameter(s string) (string, bool) {
 			}
 		}
 		return s[end+2:], true
-	default: // an integer, a decimal or a date
-		j := 0
-		if s[0] == '@' {
-			j++
+	case s[0] == '@': // a date: an integer, never a decimal (Section 4.2.9)
+		return skipNumber(s[1:], false)
+	default:
+		return skipNumber(s, true)
+	}
+}
+
+// skipNumber skips an sf-integer, or where allowed an sf-decimal, within RFC 9651's limits (Section 4.2.4): an
+// integer has at most 15 digits; a decimal at most 12 before its point and 1 to 3 after it.
+func skipNumber(s string, decimal bool) (string, bool) {
+	i := 0
+	if i < len(s) && s[i] == '-' {
+		i++
+	}
+	start := i
+	for i < len(s) && isDigit(s[i]) {
+		i++
+	}
+	digits := i - start
+	if digits == 0 {
+		return "", false
+	}
+	if decimal && i < len(s) && s[i] == '.' {
+		i++
+		fraction := i
+		for i < len(s) && isDigit(s[i]) {
+			i++
 		}
-		if j < len(s) && s[j] == '-' {
-			j++
-		}
-		digits := j
-		for j < len(s) && isDigit(s[j]) {
-			j++
-		}
-		if j == digits {
+		if n := i - fraction; digits > 12 || n == 0 || n > 3 {
 			return "", false
 		}
-		if j < len(s) && s[j] == '.' && s[0] != '@' {
-			j++
-			fraction := j
-			for j < len(s) && isDigit(s[j]) {
-				j++
-			}
-			if j == fraction {
+		return s[i:], true
+	}
+	return s[i:], digits <= 15
+}
+
+// skipDisplayString skips an sf-displaystring (RFC 9651 Section 4.2.10): %" then printable ASCII, with % only in
+// lowercase %xx escapes, then a closing quote. The bytes it stands for must be UTF-8.
+func skipDisplayString(s string) (string, bool) {
+	var b []byte
+	for i := len(`%"`); i < len(s); i++ {
+		switch c := s[i]; {
+		case c < 0x20 || c > 0x7e:
+			return "", false
+		case c == '"':
+			return s[i+1:], utf8.Valid(b)
+		case c == '%':
+			if i+2 >= len(s) || !isLowerHex(s[i+1]) || !isLowerHex(s[i+2]) {
 				return "", false
 			}
+			b = append(b, unhex(s[i+1])<<4|unhex(s[i+2]))
+			i += 2
+		default:
+			b = append(b, c)
 		}
-		return s[j:], true
 	}
+	return "", false
+}
+
+func isLowerHex(c byte) bool { return isDigit(c) || 'a' <= c && c <= 'f' }
+
+// unhex is the value of a digit that isLowerHex accepts.
+func unhex(c byte) byte {
+	if isDigit(c) {
+		return c - '0'
+	}
+	return c - 'a' + 10
 }
