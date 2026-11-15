@@ -3,6 +3,7 @@ package cat
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
 )
 
@@ -126,19 +127,19 @@ func validScheme(s string) bool {
 	return s != ""
 }
 
-// validHost applies RFC 3986 Section 3.2.2, without IPvFuture: an IP literal of hexadecimal digits, colons and
-// dots in brackets, or a reg-name of unreserved characters, percent-encodings and sub-delimiters.
+// validHost applies RFC 3986 Section 3.2.2, without IPvFuture: an IPv6 address in brackets, with no zone, or a
+// non-empty reg-name of unreserved characters, percent-encodings and sub-delimiters. RFC 9110 Section 4.2.1 forbids
+// an empty host in http and https URIs.
 func validHost(h string) bool {
 	if strings.HasPrefix(h, "[") {
-		if len(h) < 3 || h[len(h)-1] != ']' {
+		if !strings.HasSuffix(h, "]") {
 			return false
 		}
-		for i := 1; i < len(h)-1; i++ {
-			if c := h[i]; !isHex(c) && c != ':' && c != '.' {
-				return false
-			}
-		}
-		return true
+		a, err := netip.ParseAddr(h[1 : len(h)-1])
+		return err == nil && a.Is6() && a.Zone() == ""
+	}
+	if h == "" {
+		return false
 	}
 	for i := 0; i < len(h); i++ {
 		if c := h[i]; !isUnreserved(c) && c != '%' && !strings.ContainsRune("!$&'()*+,;=", rune(c)) {

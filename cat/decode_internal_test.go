@@ -60,3 +60,12 @@ func TestDecodeTextLengthLimit(t *testing.T) {
 		t.Fatalf("a token over the limit: got %v, want an error wrapping cwt.ErrUnsupported", err)
 	}
 }
+
+func TestIsBase64URLMatchesRFC4648(t *testing.T) {
+	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+	for i := 0; i < 256; i++ {
+		if got, want := isBase64URL(byte(i)), strings.IndexByte(alphabet, byte(i)) >= 0; got != want {
+			t.Errorf("isBase64URL(%q) = %v, want %v", byte(i), got, want)
+		}
+	}
+}

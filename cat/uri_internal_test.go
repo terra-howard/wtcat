@@ -1,6 +1,7 @@
 package cat
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -28,6 +29,12 @@ func TestNormalizeURI(t *testing.T) {
 		{"https://cdn.example/p?", uriParts{scheme: "https", host: "cdn.example", path: "/p"}},
 		{"https://cdn.example/p#frag", uriParts{scheme: "https", host: "cdn.example", path: "/p"}},
 		{"https://cdn.%45xample/", uriParts{scheme: "https", host: "cdn.example", path: "/"}},
+		{"https://cdn.example?a=b", uriParts{scheme: "https", host: "cdn.example", path: "/", query: "a=b"}},
+		{"https://@cdn.example/x", uriParts{scheme: "https", host: "cdn.example", path: "/x"}},
+		{"https://cdn.example:9090/", uriParts{scheme: "https", host: "cdn.example", port: "9090", path: "/"}},
+		{"https://cdn.example/..", uriParts{scheme: "https", host: "cdn.example", path: "/"}},
+		{"https://cdn.example/a/b/c/..", uriParts{scheme: "https", host: "cdn.example", path: "/a/b/"}},
+		{"https://[::FFFF:192.0.2.1]/", uriParts{scheme: "https", host: "[::ffff:192.0.2.1]", path: "/"}},
 	} {
 		got, err := normalizeURI(tc.in)
 		if err != nil {
@@ -54,6 +61,11 @@ func TestNormalizeURIRefuses(t *testing.T) {
 		"https://[v1.x]/", // IPvFuture is not supported
 		"https://[]/",
 		"https://h st/",
+		"https://[1]/",              // not an IPv6 address
+		"https://[192.0.2.1]/",      // IPv4 does not go in brackets
+		"https://[fe80::1%25eth0]/", // zone identifiers are not supported
+		"https://:8080/",            // an empty host
+		"https:///x",                // an empty host
 		"",
 	} {
 		if _, err := normalizeURI(in); err == nil {
@@ -133,4 +145,35 @@ func FuzzNormalizeURI(f *testing.F) {
 			_ = first.component(k)
 		}
 	})
+}
+
+// The character predicates, checked for every byte against RFC 3986's sets written out in full.
+func TestCharacterPredicatesMatchRFC3986(t *testing.T) {
+	const (
+		alpha      = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+		digit      = "0123456789"
+		hexdig     = digit + "ABCDEFabcdef"
+		unreserved = alpha + digit + "-._~"
+		subDelims  = "!$&'()*+,;="
+	)
+	in := func(set string, c byte) bool { return strings.IndexByte(set, c) >= 0 }
+	for i := 0; i < 256; i++ {
+		c := byte(i)
+		if got := isHex(c); got != in(hexdig, c) {
+			t.Errorf("isHex(%q) = %v", c, got)
+		}
+		if got := isUnreserved(c); got != in(unreserved, c) {
+			t.Errorf("isUnreserved(%q) = %v", c, got)
+		}
+		// Schemes are lowercased before the check, so only lowercase letters may start one.
+		if got := validScheme(string([]byte{c})); got != in(alpha[26:], c) {
+			t.Errorf("validScheme(%q) = %v", c, got)
+		}
+		if got := validScheme(string([]byte{'a', c})); got != in(alpha[26:]+digit+"+-.", c) {
+			t.Errorf("validScheme(%q) = %v", "a"+string(c), got)
+		}
+		if got := validHost(string([]byte{c})); got != in(unreserved+subDelims+"%", c) {
+			t.Errorf("validHost(%q) = %v", c, got)
+		}
+	}
 }
