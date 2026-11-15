@@ -80,3 +80,14 @@ arrived on. What would an expert do with the request's shape, and with the place
 - Token location and removal remain undone until the integration package; until then, callers do it.
 - The regular-expression divergence is the one known difference from POSIX, recorded here and in the package
   documentation.
+
+## Update, 2026-11-14, found while building the match engine (task 23)
+
+`regexp.CompilePOSIX` does not reject everything it cannot do. It accepts POSIX equivalence classes (`[[=a=]]`)
+and collating symbols (`[[.a.]]`) but reads them as plain characters, and it treats a backslash inside a bracket
+expression as an escape where POSIX treats it as a literal. An expression using any of these would be matched
+with a meaning its issuer did not write. So before compiling, the package scans bracket expressions and refuses
+those three constructs as unsupported, consistent with item 5. One smaller difference is recorded and left: in
+Go's POSIX mode `^` and `$` also match at line breaks, which cannot change a result here, because a normalized
+URI component and an HTTP field value contain no line breaks.
+

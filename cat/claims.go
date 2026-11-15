@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/fxamacker/cbor/v2"
 
@@ -21,6 +22,14 @@ type Claims struct {
 	CWTID     []byte       // cti (7); an empty byte string is a non-nil empty slice
 	Version   uint64       // catv (310); 1 when absent (section 4.6.8)
 	Methods   []string     // catm (313): the methods the token may be used with
+
+	headers []headerMatch // cath (315); nil when absent
+}
+
+// headerMatch is one member of a cath claim.
+type headerMatch struct {
+	name  string
+	match *match
 }
 
 // Claim keys this package knows (section 4.5 and RFC 8392).
@@ -33,7 +42,9 @@ const (
 	claimIat  = 6
 	claimCti  = 7
 	claimCatv = 310
+	claimCatu = 312
 	claimCatm = 313
+	claimCath = 315
 )
 
 // notYetEnforced lists the claims a recipient must support (section 4.5) that phase 1 does not enforce yet. A token
@@ -42,7 +53,6 @@ var notYetEnforced = map[int64]string{
 	8:   "cnf",
 	311: "catnip",
 	312: "catu",
-	315: "cath",
 	321: "catdpop",
 }
 
@@ -122,7 +132,7 @@ func decodeClaims(payload []byte) (*Claims, error) {
 // decodeClaim decodes one claim value into c if the key is one this package knows.
 func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	switch key {
-	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm:
+	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath:
 	default:
 		return nil
 	}
@@ -153,6 +163,8 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 		err = decMode.Unmarshal(value, &c.CWTID)
 	case claimCatm:
 		c.Methods, err = textArray(value, key)
+	case claimCath:
+		c.headers, err = decodeCath(value)
 	case claimCatv:
 		if majorType(value) != majorUnsigned {
 			return malformed("claim 310 (catv) is not an unsigned integer")
@@ -268,6 +280,34 @@ func textArray(value cbor.RawMessage, key int64) ([]string, error) {
 			return nil, err
 		}
 		out = append(out, *s)
+	}
+	return out, nil
+}
+
+// decodeCath decodes a cath claim: header names to matches (section 4.6.13). Two names equal but for case make
+// the claim malformed (decision 0017).
+func decodeCath(value cbor.RawMessage) ([]headerMatch, error) {
+	var m map[any]cbor.RawMessage
+	if err := decMode.Unmarshal(value, &m); err != nil || m == nil {
+		return nil, malformed("claim 315 (cath) is not a map")
+	}
+	out := make([]headerMatch, 0, len(m))
+	seen := map[string]bool{}
+	for k, v := range m {
+		name, ok := k.(string)
+		if !ok {
+			return nil, malformed("claim 315 (cath) has a key of type %T", k)
+		}
+		folded := strings.ToLower(name)
+		if seen[folded] {
+			return nil, malformed("claim 315 (cath) names header %q twice, ignoring case", name)
+		}
+		seen[folded] = true
+		hm, err := decodeMatch(v, "cath "+name)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, headerMatch{name: name, match: hm})
 	}
 	return out, nil
 }

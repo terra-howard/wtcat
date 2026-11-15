@@ -13,15 +13,21 @@
 //	nbf (5)     the current time must not be before it, with no leeway
 //	catv (310)  must be 1
 //	catm (313)  must list the request's method, case-sensitively (needs ValidateRequest)
+//	cath (315)  each named header must be present and match (needs ValidateRequest)
 //
 // It decodes and type-checks sub (2), iat (6) and cti (7), which are informational here. It refuses, as
 // unsupported, any token carrying a claim CTA-5007-B requires recipients to enforce that this version does not
-// enforce yet: cnf (8), catnip (311), catu (312), cath (315) and catdpop (321). Every other claim is
+// enforce yet: cnf (8), catnip (311), catu (312) and catdpop (321). Every other claim is
 // ignored, as section 4.5 requires of claims a recipient does not support, including the optional catreplay,
 // catpor, catalpn, the geographic claims, cattpk, catifdata, catif and catr.
 //
 // Algorithms: HMAC 256/64, HMAC 256/256, ES256 and PS256, in COSE_Mac0 or COSE_Sign1, each key bound to one of
 // them. Encrypted tokens and messages with more than one signer or recipient are not supported.
+//
+// Regular expressions in matches are POSIX extended regular expressions, run by regexp.CompilePOSIX, which takes
+// time linear in its input. Two differences from POSIX are handled as decision 0017 records: among several
+// leftmost-longest matches, groups are assigned as a backtracking search would; and equivalence classes,
+// collating symbols and backslashes inside brackets, which Go would misread, are refused.
 //
 // # Where things are
 //
@@ -30,6 +36,7 @@
 //
 //	validator.go      Validator, Key, Token and the acceptance errors
 //	request.go        Request, ValidateRequest and the request claims (decision 0017)
+//	match.go          the match types of section 4.6.10, used by cath and catu, and the POSIX regex checks
 //	decode.go         the token's text form: strict base64url and the length limit
 //	deterministic.go  the deterministic-encoding check of section 4.5
 //	claims.go         Claims and the claim-set decoder: core claims, catv, tag rules, claims not yet enforced
