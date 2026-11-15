@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
@@ -25,6 +26,22 @@ func marshal(t *testing.T, v any) []byte {
 		t.Fatal(err)
 	}
 	return b
+}
+
+var (
+	rsaOnce sync.Once
+	rsaPriv *rsa.PrivateKey
+	rsaErr  error
+)
+
+// rsaKey generates one RSA key for the whole test binary; generating keys is the slowest part of these tests.
+func rsaKey(t *testing.T) *rsa.PrivateKey {
+	t.Helper()
+	rsaOnce.Do(func() { rsaPriv, rsaErr = rsa.GenerateKey(rand.Reader, 2048) })
+	if rsaErr != nil {
+		t.Fatal(rsaErr)
+	}
+	return rsaPriv
 }
 
 type fixture struct {
@@ -45,10 +62,7 @@ func newFixture(t *testing.T) fixture {
 	h.Write(marshal(t, []any{"MAC0", macProtected, []byte{}, payload}))
 	hmacToken := marshal(t, cbor.Tag{Number: 17, Content: []any{macProtected, map[int64]any{}, payload, h.Sum(nil)}})
 
-	priv, err := rsa.GenerateKey(rand.Reader, 3072)
-	if err != nil {
-		t.Fatal(err)
-	}
+	priv := rsaKey(t)
 	sigProtected := marshal(t, map[int64]any{1: -37})
 	digest := sha256.Sum256(marshal(t, []any{"Signature1", sigProtected, []byte{}, payload}))
 	sig, err := rsa.SignPSS(rand.Reader, priv, crypto.SHA256, digest[:], &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})

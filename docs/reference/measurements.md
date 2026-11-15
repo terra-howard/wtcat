@@ -100,4 +100,43 @@ Each prediction is committed before its task starts. *Outcome* states a checkabl
 | 17. `cat` claims decoding: core claims, `catv`, tag rules, `NumericDate`, and refusing required claims not yet enforced | 1 | 8 min | all new tests pass on the first compiled run, about 60%; hand mutants of the claim rules all killed on the first try, about 40% | 2 | about 4 min (19:02:13 to 19:06:39) | first half wrong: two rounds, a name clash with task 15's `decodeText` and a test input the CBOR library refused to encode (tag 0 on an integer). Second half wrong too, as the 40% expected: of 15 hand mutants, 6 survived. Four were equivalent (a tag or wrong type already fails each claim's type check; the CBOR library already returns an empty `cti` as non-nil, so that line was removed). Two were real gaps at exactly 2^63 and -2^63, now tested. **The fuzzer then found a defect on its first input:** a tiny negative float date gave a fraction of exactly 1, because `f - floor(f)` rounds for small negative `f`. Comparisons were still right; the documented range of `Fraction` was not. Fixed, with a regression test and the saved input; 9,998,627 further inputs found nothing |
 | 18. `cat.Validator`: the pipeline, acceptance of `iss`, `aud`, `exp` and `nbf` with no leeway, and an example | 1 | 10 min | all new tests pass on the first compiled run, about 55%; hand mutants of the acceptance rules all killed on the first try, about 50% | 0 | about 4 min (19:07:27 to 19:11:06) | both held: first compiled run passed, and all 12 hand mutants were killed on the first try (issuer rules, the empty `aud` array, both time boundaries, each of the three deterministic-encoding checks, the length limits, the clock). A 30 s fuzz of `Validate` ran 4,681,504 inputs with none failing; most stop at base64url, so the claims decoder's own fuzz carries the deeper coverage |
 | 19. Decision 0014's extraction program, structure only, with `-tags cta` tests | 2 | 12 min | it recovers from the owner's copy exactly the four values the hand extraction found (tokens of 102 and 574 characters, keys of 564 and 44), about 70%; the `cta` tests pass against them, about 75% | 1 | about 3 min (19:12:25 to 19:15:03) | both held. One round: rounding a token's text down to whole 4-character groups cut its last byte when the token ended at a `/`. The program then recovered all four values from the owner's copy, each identical to the hand extraction, with no prose anchors. The `cta` tests passed, and failed with instructions when the file was moved away. A scan of all 92 tracked files for 16-character pieces of the four values found none |
-| 20. Gremlins v0.6.0 on `cat`, and on `cwt` again for `VerifyMessage`, same flags as task 11 | not applicable | 6 min | `cat` efficacy at least 90%, about 60%; most lived mutants are ones the hand mutants already showed equivalent, about 55%; `cwt` efficacy stays at least 94%, about 70% | | | |
+| 20. Gremlins v0.6.0 on `cat`, and on `cwt` again for `VerifyMessage`, same flags as task 11 | not applicable | 6 min | `cat` efficacy at least 90%, about 60%; most lived mutants are ones the hand mutants already showed equivalent, about 55%; `cwt` efficacy stays at least 94%, about 70% | not applicable | about 11 min (19:15:26 to 19:26:13), six Gremlins runs of about 54 s | first half wrong at first: 89.16% on the first run, below the 90% bound. Second half wrong: of 22 lived, 6 marked real gaps, and work on them found that two of my own task 16 tests never tested truncation (their heads were not in shortest form, so they failed for that reason first). After the fixes, `cat` 93.66% (192 killed, 13 lived, all equivalent). Third half held: `cwt` 95.24% (140 killed, the same 7 equivalent as task 11), and all 21 new `VerifyMessage` mutants killed once a slow test key stopped causing timeouts |
+
+## Gremlins, task 20
+
+Same command as task 11, on `./cat` and then `./cwt`.
+
+| Run | Killed | Lived | Not covered | Timed out | Efficacy |
+|---|---|---|---|---|---|
+| `cat`, first | 181 | 22 | 30 | 0 | 89.16% |
+| `cat`, second, same code | 172 | 19 | 30 | 12 | 90.05% |
+| `cat`, after tests for the real gaps | 189 | 16 | 28 | 0 | 92.20% |
+| `cat`, after slices with no spare capacity and an empty-payload test | 190 | 15 | 28 | 0 | 92.68% |
+| `cat`, after the truncation tests were corrected | 192 | 13 | 28 | 0 | 93.66% |
+| `cwt`, with `VerifyMessage` | 119 | 6 | 22 | 22 | 95.20% |
+| `cwt`, after one shared 2048-bit test key replaced per-fixture 3072-bit keys | 140 | 7 | 22 | 0 | 95.24% |
+
+**The real gaps, each now killed:**
+- a truncated text string, where the mutant read past the end;
+- a bignum tag enclosing an array;
+- the head length of a bignum of 24 bytes or more;
+- a double-precision NaN payload bit other than bit 0;
+- a half-precision date;
+- an empty payload given to the claims decoder, where the mutant indexed it and would panic.
+
+**Two findings about the tests themselves:**
+- `hex.DecodeString` decodes in place and leaves spare capacity, so a mutant that sliced past a test input's length read garbage instead of panicking. The checker's tests now cut their inputs to their length.
+- The task 16 tests named "truncated byte string" and "truncated text string" used one-byte lengths below 24. Those are not in shortest form, so the checker rejected them for that reason, and truncation was never reached. Hand mutants in task 16 did not catch this, because none targeted the bounds check.
+
+**The 13 equivalent mutants in `cat`:**
+- two in an error message's arithmetic;
+- the map-count bound, which a second check enforces;
+- four in the half-precision conversion: the sign, and `mant + 1024` against `mant - 1024`. Neither can change whether a half value is integral;
+- the infinity and NaN swap there, since both are accepted;
+- the key bound at `MaxInt64`, which is an unknown claim either way;
+- two `continue` statements turned into `break`. Inside a `switch`, `break` leaves only the switch, and key 0 is then ignored;
+- a type check that `textClaim` repeats;
+- the simple-value guard in dates, where the decoder's own error gives the same kind.
+
+**The 28 not covered** are `switch` case expressions, the coverage artifact task 11 found.
+

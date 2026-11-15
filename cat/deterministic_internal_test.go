@@ -11,13 +11,15 @@ import (
 	"github.com/terra-howard/wtcat/cwt"
 )
 
+// mustHex decodes test hex into a slice whose capacity equals its length, so that reading past the end panics
+// instead of silently reading spare capacity (hex.DecodeString decodes in place, leaving spare capacity behind).
 func mustHex(t testing.TB, s string) []byte {
 	t.Helper()
 	b, err := hex.DecodeString(strings.ReplaceAll(s, " ", ""))
 	if err != nil {
 		t.Fatalf("bad test hex %q: %v", s, err)
 	}
-	return b
+	return b[:len(b):len(b)]
 }
 
 // RFC 8392 Appendix A, as in package cwt's tests and the protected tests.
@@ -62,6 +64,7 @@ func TestCheckDeterministicAccepts(t *testing.T) {
 		{"single NaN whose payload does not fit a half", "fa7f800001"},
 		{"2^64 as single: integral, but too large for major type 0", "fa5f800000"},
 		{"bignum too large for 64 bits", "c249" + "01" + strings.Repeat("00", 8)},
+		{"24-byte bignum, with a one-byte length", "c25818" + strings.Repeat("01", 24)},
 		{"two-byte simple value 32", "f820"},
 		{"false, true, null", "83 f4 f5 f6"},
 		{"32 nested arrays", strings.Repeat("81", 32) + "00"},
@@ -111,8 +114,12 @@ func TestCheckDeterministicRejects(t *testing.T) {
 		{"bignum with a leading zero", "c249" + "00" + "01" + strings.Repeat("00", 7)},
 		{"empty negative bignum", "c340"},
 		{"bignum tag on an integer", "c201"},
+		{"bignum tag on an array of nine", "c289" + strings.Repeat("01", 9)},
+		{"24-byte bignum with a leading zero", "c25818" + "00" + strings.Repeat("01", 23)},
 		{"truncated argument", "1900"},
-		{"truncated byte string", "58050102"},
+		{"truncated byte string", "430102"}, // length 3, two bytes present
+		{"truncated text string", "636161"}, // length 3, two bytes present
+		{"truncated long byte string", "5818" + strings.Repeat("00", 23)},
 		{"truncated array", "8201"},
 		{"trailing bytes", "0102"},
 		{"array count larger than the input", "9bffffffffffffffff"},
@@ -171,6 +178,7 @@ func TestDoubleFitsSingle(t *testing.T) {
 		{"infinity", 0x7ff0000000000000, true},
 		{"quiet NaN", 0x7ff8000000000000, true},
 		{"NaN with a low payload bit", 0x7ff0000000000001, false},
+		{"NaN with payload bit 1", 0x7ff8000000000002, false},
 	} {
 		if got := doubleFitsSingle(tc.bits); got != tc.want {
 			t.Errorf("doubleFitsSingle(%s, %#016x) = %v, want %v", tc.name, tc.bits, got, tc.want)

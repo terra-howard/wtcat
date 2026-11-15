@@ -143,11 +143,37 @@ func TestDecodeClaimsIgnoresUnknownAndOptionalClaims(t *testing.T) {
 	}
 }
 
+// Map order is random in Go, so this decodes the same claim set many times: a text-keyed claim must never stop
+// the claims after it from being checked.
+func TestDecodeClaimsKeepsCheckingAfterATextKey(t *testing.T) {
+	claims := map[any]any{int64(312): map[int64]any{}}
+	for _, k := range "abcdefghijklmnopqrst" {
+		claims[string(k)] = 0
+	}
+	payload := enc(t, claims)
+	for i := 0; i < 30; i++ {
+		if _, err := decodeClaims(payload); !errors.Is(err, cwt.ErrUnsupported) {
+			t.Fatalf("decode %d: got %v, want catu refused as unsupported", i, err)
+		}
+	}
+}
+
+func TestDecodeClaimsHalfAndSinglePrecisionDates(t *testing.T) {
+	c, err := decodeClaims(mustHex(t, "a2 04 f93800 05 fa3fc00000")) // exp 0.5 as half, nbf 1.5 as single
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Expiry.Unix() != 0 || c.Expiry.Fraction() != 0.5 || c.NotBefore.Unix() != 1 || c.NotBefore.Fraction() != 0.5 {
+		t.Errorf("exp = (%d, %v), nbf = (%d, %v)", c.Expiry.Unix(), c.Expiry.Fraction(), c.NotBefore.Unix(), c.NotBefore.Fraction())
+	}
+}
+
 func TestDecodeClaimsRejectsMalformed(t *testing.T) {
 	cases := []struct {
 		name    string
 		payload []byte
 	}{
+		{"empty", []byte{}},
 		{"not CBOR", []byte{0xff}},
 		{"an array, not a map", enc(t, []any{1})},
 		{"a duplicate claim", mustHex(t, "a2 01 6161 01 6162")},
@@ -165,6 +191,7 @@ func TestDecodeClaimsRejectsMalformed(t *testing.T) {
 		{"exp infinity", enc(t, map[int64]any{4: raw(t, "f97c00")})},
 		{"nbf negative infinity", enc(t, map[int64]any{5: raw(t, "f9fc00")})},
 		{"iat a byte string", enc(t, map[int64]any{6: []byte{1}})},
+		{"exp a simple value", enc(t, map[int64]any{4: true})},
 		{"cti text", enc(t, map[int64]any{7: "id"})},
 		{"cti tagged", enc(t, map[int64]any{7: raw(t, "d8184101")})},
 		{"catv text", enc(t, map[int64]any{310: "1"})},
