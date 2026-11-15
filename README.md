@@ -13,7 +13,9 @@ supported claims is in the package documentation. The parsers are fuzzed. The ce
 
 The specification is CTA-5007-B, *Common Access Token*, free to download from the
 [Consumer Technology Association](https://www.cta.tech/). This repository does not reproduce it
-([decision 0014](docs/decisions/0014-using-cta-5007-b-in-public.md)).
+([decision 0014](docs/decisions/0014-using-cta-5007-b-in-public.md)). If you have a copy, you can run the tests
+against its own HMAC 256/256 and PS256 examples: `pdftotext` it (without `-layout`), then
+`go run ./cmd/ctaexamples cta.txt` and `go test -tags cta ./cat`. The extracted examples stay on your machine.
 
 There are two deliverables of equal weight: a validator worth using, and the development process it is built with, written down in [docs/explanation/process.md](docs/explanation/process.md)
 so later projects can reuse it.
