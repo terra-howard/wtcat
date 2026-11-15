@@ -1,0 +1,15 @@
+# Gremlins settings for ./cwt, used by .github/workflows/mutation.yml (decision 0024). Run locally with:
+#   go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash --config .github/gremlins/cwt.yaml ./cwt
+# The thresholds must live in this file: Gremlins v0.6.0 drops --threshold-efficacy and --threshold-mcover given on
+# the command line, because its configuration library returns float flags as strings.
+unleash:
+  integration: true
+  timeout-coefficient: 10
+  threshold:
+    efficacy: 96 # measured 97.16% in task 55
+    mutant-coverage: 85 # measured 87.56%; a run where mutants time out en masse falls below this
+mutants:
+  invert-logical:
+    enabled: true
+  invert-loopctrl:
+    enabled: true

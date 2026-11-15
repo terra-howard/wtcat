@@ -1,0 +1,34 @@
+# Mutation testing, decisions 0013 and 0024. Gremlins plants faults one at a time and fails the job if a package's
+# test efficacy or mutant coverage falls below its threshold. It takes minutes per package, so it runs on pushes to
+# main, weekly and by hand, while the fast gate in ci.yml runs on every push. Actions are pinned as in ci.yml.
+name: mutation
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gremlins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        # Each package's flags and thresholds are in .github/gremlins/<package>.yaml. They cannot go on the command
+        # line: Gremlins v0.6.0 ignores its threshold flags there (decision 0024).
+        package: [cwt, cat, cathttp]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Gremlins on ./${{ matrix.package }}
+        run: >-
+          go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash
+          --config .github/gremlins/${{ matrix.package }}.yaml ./${{ matrix.package }}

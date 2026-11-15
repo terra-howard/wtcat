@@ -78,7 +78,9 @@ Neither replaces outside vectors. A surviving mutant shows that a test misses a 
 the test notices it, not that the code was right to begin with.
 
 Gremlins starts thousands of short-lived test processes and loads every core for minutes. Run it where an
-interruption costs nothing, such as a build server, rather than on a machine doing other work.
+interruption costs nothing, such as a build server, rather than on a machine doing other work. In CI it is a gate:
+each package has an efficacy threshold, and a run below it fails
+([decision 0024](../decisions/0024-mutation-testing-in-ci.md)).
 
 ## Roles
 

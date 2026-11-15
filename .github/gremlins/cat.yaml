@@ -1,0 +1,15 @@
+# Gremlins settings for ./cat, used by .github/workflows/mutation.yml (decision 0024). Run locally with:
+#   go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash --config .github/gremlins/cat.yaml ./cat
+# The thresholds must live in this file: Gremlins v0.6.0 drops --threshold-efficacy and --threshold-mcover given on
+# the command line, because its configuration library returns float flags as strings.
+unleash:
+  integration: true
+  timeout-coefficient: 10
+  threshold:
+    efficacy: 92.5 # measured 93.60% in task 55
+    mutant-coverage: 88 # measured 90.90%; a run where mutants time out en masse falls below this
+mutants:
+  invert-logical:
+    enabled: true
+  invert-loopctrl:
+    enabled: true
