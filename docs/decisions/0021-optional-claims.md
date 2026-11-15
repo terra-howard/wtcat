@@ -37,3 +37,17 @@ the specification allows (section 4.5). Which should be enforced, how, and in wh
 - The `Replay` function decides how long to remember a `cti`; remembering it until the token's `exp` is enough.
 - Until the issuance decision, tokens with `catif` or `catr` are accepted or refused on their other claims only,
   which section 4.5 permits.
+
+## Update, 2026-11-14: the geographic claims, after reading sections 4.6.14 to 4.6.17
+
+- **`catgeoiso3166` (316)** is enforced when the caller supplies `Request.Location`; a nil `Location` means the
+  recipient does not locate clients, and the claim is ignored. A `Location` whose `Country` is empty means the
+  client could not be located, and the token is refused (`cat.ErrLocation`), since accepting it would let a failed
+  lookup bypass the restriction. Each entry must be an ISO 3166 country code, optionally followed by a dash and a
+  region code; this package checks that syntax but holds no copy of ISO's lists, so a well-formed code that does not
+  exist is not called invalid, as section 4.6.14 asks, but simply matches no client. That gap is recorded here.
+- **`catgeocoord` (317)** must be carried in an encrypted claim (section 4.6.15), and this package does not decrypt
+  tokens, so supporting it could only mean refusing it. It stays ignored, which section 4.5 permits.
+- **`geohash` (282) and `catgeoalt` (318)** need the client's coordinates and altitude, which few recipients have.
+  They wait until a caller needs them.
+
