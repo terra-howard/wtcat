@@ -28,6 +28,7 @@ const (
 	majorBytes    = 2
 	majorText     = 3
 	majorArray    = 4
+	majorMap      = 5
 	majorTag      = 6
 	majorSimple   = 7
 )
@@ -44,10 +45,10 @@ func isFloat(raw []byte) bool {
 func DecodeClaims(data []byte) (*Claims, error) {
 	var m map[any]cbor.RawMessage
 	if err := decMode.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf("%w: claims set: %v", ErrMalformed, err)
+		return nil, malformed("claims set: %v", err)
 	}
 	if m == nil {
-		return nil, fmt.Errorf("%w: claims set is not a map", ErrMalformed)
+		return nil, malformed("claims set is not a map")
 	}
 	c := &Claims{}
 	for k, raw := range m {
@@ -56,10 +57,10 @@ func DecodeClaims(data []byte) (*Claims, error) {
 			return nil, err
 		}
 		if len(raw) == 0 {
-			return nil, fmt.Errorf("%w: claim %d is empty", ErrMalformed, key)
+			return nil, malformed("claim %d is empty", key)
 		}
 		if key >= 1 && key <= 7 && majorType(raw) == majorTag {
-			return nil, fmt.Errorf("%w: claim %d is tagged, which RFC 8392 Section 3 forbids", ErrMalformed, key)
+			return nil, malformed("claim %d is tagged, which RFC 8392 Section 3 forbids", key)
 		}
 		switch key {
 		case 1:
@@ -76,7 +77,7 @@ func DecodeClaims(data []byte) (*Claims, error) {
 			c.IssuedAt, err = decodeDate(raw, key)
 		case 7:
 			if majorType(raw) != majorBytes {
-				return nil, fmt.Errorf("%w: claim 7 (cti) is not a byte string", ErrMalformed)
+				return nil, malformed("claim 7 (cti) is not a byte string")
 			}
 			err = decMode.Unmarshal(raw, &c.CWTID)
 		default:
@@ -97,21 +98,21 @@ func claimKey(k any) (int64, error) {
 	switch v := k.(type) {
 	case uint64:
 		if v > math.MaxInt64 {
-			return 0, fmt.Errorf("%w: claim key %d is out of range", ErrMalformed, v)
+			return 0, malformed("claim key %d is out of range", v)
 		}
 		return int64(v), nil
 	case int64:
 		return v, nil
 	case string:
-		return 0, fmt.Errorf("%w: text claim key %q", ErrUnsupported, v)
+		return 0, unsupported("text claim key %q", v)
 	default:
-		return 0, fmt.Errorf("%w: claim key of type %T", ErrMalformed, k)
+		return 0, malformed("claim key of type %T", k)
 	}
 }
 
 func decodeText(raw []byte, key int64, dst *string) error {
 	if majorType(raw) != majorText {
-		return fmt.Errorf("%w: claim %d is not a text string", ErrMalformed, key)
+		return malformed("claim %d is not a text string", key)
 	}
 	return decMode.Unmarshal(raw, dst)
 }
@@ -122,7 +123,7 @@ func decodeDate(raw []byte, key int64) (*NumericDate, error) {
 	case isFloat(raw):
 		var f float64
 		if err := decMode.Unmarshal(raw, &f); err != nil {
-			return nil, fmt.Errorf("%w: claim %d: %v", ErrMalformed, key, err)
+			return nil, malformed("claim %d: %v", key, err)
 		}
 		d, err := NumericDateFromFloat(f)
 		if err != nil {
@@ -130,11 +131,11 @@ func decodeDate(raw []byte, key int64) (*NumericDate, error) {
 		}
 		return d, nil
 	case majorType(raw) != majorUnsigned && majorType(raw) != majorNegative:
-		return nil, fmt.Errorf("%w: claim %d is not a date", ErrMalformed, key)
+		return nil, malformed("claim %d is not a date", key)
 	}
 	var v int64
 	if err := decMode.Unmarshal(raw, &v); err != nil {
-		return nil, fmt.Errorf("%w: claim %d: %v", ErrMalformed, key, err)
+		return nil, malformed("claim %d: %v", key, err)
 	}
 	return NewNumericDate(v), nil
 }
@@ -150,7 +151,7 @@ func decodeAudience(raw []byte) ([]string, error) {
 	}
 	var items []cbor.RawMessage
 	if majorType(raw) != majorArray || decMode.Unmarshal(raw, &items) != nil {
-		return nil, fmt.Errorf("%w: claim 3 (aud) is neither a text string nor an array of them", ErrMalformed)
+		return nil, malformed("claim 3 (aud) is neither a text string nor an array of them")
 	}
 	out := make([]string, 0, len(items))
 	for _, item := range items {
@@ -169,5 +170,5 @@ func wrapMalformed(err error) error {
 	if isSentinel(err) {
 		return err
 	}
-	return fmt.Errorf("%w: %v", ErrMalformed, err)
+	return malformed("%v", err)
 }

@@ -3,13 +3,11 @@ package cwt
 import (
 	"crypto/hmac"
 	"crypto/sha256"
-	"fmt"
 
 	"github.com/fxamacker/cbor/v2"
 )
 
-// macStructure builds RFC 9052 Section 6.3's MAC_structure for COSE_Mac0 with empty external data. Nil slices
-// are replaced with empty ones, because the CBOR encoder writes a nil slice as null, not as an empty byte string.
+// macStructure builds RFC 9052 Section 6.3's MAC_structure for COSE_Mac0 with empty external data.
 func macStructure(protectedRaw, payload []byte) ([]byte, error) {
 	return cbor.Marshal([]any{"MAC0", nonNil(protectedRaw), []byte{}, nonNil(payload)})
 }
@@ -30,19 +28,19 @@ func verifyMac0Payload(token, key []byte) ([]byte, error) {
 func verifyMac0Message(msg *coseMessage, key []byte) error {
 	var tagLen int
 	switch msg.alg {
-	case algHMAC256x64:
+	case HMAC256x64:
 		tagLen = 8
-	case algHMAC256x256:
+	case HMAC256x256:
 		tagLen = 32
 	default:
-		return unsupported("algorithm %d for COSE_Mac0", msg.alg)
+		return unsupported("%v for COSE_Mac0", msg.alg)
 	}
 	if len(key) == 0 {
-		return fmt.Errorf("%w: empty key", ErrVerification)
+		return unverified("empty key")
 	}
 	toMac, err := macStructure(msg.protectedRaw, msg.payload)
 	if err != nil {
-		return fmt.Errorf("%w: building MAC structure: %v", ErrMalformed, err)
+		return malformed("building MAC structure: %v", err)
 	}
 	h := hmac.New(sha256.New, key)
 	h.Write(toMac)

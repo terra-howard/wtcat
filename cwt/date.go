@@ -1,7 +1,6 @@
 package cwt
 
 import (
-	"fmt"
 	"math"
 	"time"
 )
@@ -44,11 +43,11 @@ func (d NumericDate) Compare(t time.Time) int {
 // dates outside the range of 64-bit seconds are unsupported (ErrUnsupported).
 func NumericDateFromFloat(f float64) (*NumericDate, error) {
 	if math.IsNaN(f) || math.IsInf(f, 0) {
-		return nil, fmt.Errorf("%w: date %v is not finite", ErrMalformed, f)
+		return nil, malformed("date %v is not finite", f)
 	}
 	floor := math.Floor(f)
 	if floor < math.MinInt64 || floor >= math.MaxInt64 { // MaxInt64 rounds up to 2^63 as a float64
-		return nil, fmt.Errorf("%w: date %v is outside the range of 64-bit seconds", ErrUnsupported, f)
+		return nil, unsupported("date %v is outside the range of 64-bit seconds", f)
 	}
 	frac := f - floor
 	if frac >= 1 { // a tiny negative date, whose fraction rounds to 1; keep it below 1

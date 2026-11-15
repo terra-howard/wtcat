@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fxamacker/cbor/v2"
+
 	"github.com/terra-howard/wtcat/cwt"
 )
 
@@ -39,4 +41,39 @@ func ExampleVerifier() {
 		fmt.Println(claims.Issuer, claims.Subject)
 	}
 	// Output: coap://as.example.com erikw
+}
+
+// Issue a MACed CWT, then verify it with the same secret bound to its algorithm. The claim set is any CBOR map
+// with integer keys; here iss (1) and exp (4).
+func ExampleIssue() {
+	secret := []byte("0123456789abcdef0123456789abcdef")
+	payload, err := cbor.Marshal(map[int64]any{1: "issuer.example", 4: 1700000060})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	token, err := cwt.Issue(payload, cwt.SigningKey{Algorithm: cwt.HMAC256x256, KID: []byte("k1"), Material: secret})
+	if err != nil {
+		fmt.Println("not issued:", err)
+		return
+	}
+
+	msg, err := cwt.VerifyMessage(token, func(kid []byte) (cwt.Key, error) {
+		if string(kid) != "k1" {
+			return cwt.Key{}, errors.New("unknown key")
+		}
+		return cwt.Key{Algorithm: cwt.HMAC256x256, Material: secret}, nil
+	})
+	if err != nil {
+		fmt.Println("refused:", err)
+		return
+	}
+	claims, err := cwt.DecodeClaims(msg.Payload)
+	if err != nil {
+		fmt.Println("refused:", err)
+		return
+	}
+	fmt.Println(msg.Algorithm, string(msg.KID), claims.Issuer, claims.Expiry.Unix())
+	// Output: HMAC 256/256 k1 issuer.example 1700000060
 }

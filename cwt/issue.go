@@ -61,7 +61,7 @@ func Issue(payload []byte, key SigningKey) ([]byte, error) {
 		}
 		tag = tagSign1
 	default:
-		return nil, fmt.Errorf("%w: issuing with algorithm %d", ErrUnsupported, key.Algorithm)
+		return nil, unsupported("issuing with %v", key.Algorithm)
 	}
 	return cbor.Marshal(cbor.Tag{Number: tag, Content: []any{protected, unprotected, nonNil(payload), proof}})
 }
@@ -87,6 +87,6 @@ func sign(key SigningKey, digest []byte) ([]byte, error) {
 		}
 		return rsa.SignPSS(rand.Reader, k, crypto.SHA256, digest, &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
 	default:
-		return nil, fmt.Errorf("cwt: algorithm %d cannot sign with a %T", key.Algorithm, key.Material)
+		return nil, fmt.Errorf("cwt: %v cannot sign with a %T", key.Algorithm, key.Material)
 	}
 }

@@ -1,7 +1,7 @@
 package cwt
 
 import (
-	"fmt"
+	"math"
 
 	"github.com/fxamacker/cbor/v2"
 )
@@ -19,33 +19,15 @@ const (
 	labelKID = 4
 )
 
-// COSE algorithm identifiers (RFC 9053).
-const (
-	algHMAC256x64  = 4
-	algHMAC256x256 = 5
-	algES256       = -7
-	algPS256       = -37
-)
-
-const majorMap = 5
-
 // coseMessage is a parsed single-recipient COSE message (COSE_Mac0 or COSE_Sign1).
 type coseMessage struct {
 	protectedRaw []byte // the protected header exactly as received, for the MAC or signature structure
-	alg          int64
+	alg          Algorithm
 	hasAlg       bool // false when no alg header is present (allowed only by VerifyMessage)
 	kid          []byte
 	payload      []byte
 	tag          []byte // the MAC tag or the signature
 	coseTag      uint64 // the COSE tag found (17 or 18), or 0 for an untagged message
-}
-
-func malformed(format string, args ...any) error {
-	return fmt.Errorf("%w: "+format, append([]any{ErrMalformed}, args...)...)
-}
-
-func unsupported(format string, args ...any) error {
-	return fmt.Errorf("%w: "+format, append([]any{ErrUnsupported}, args...)...)
 }
 
 // parseCOSE parses a token that should be a COSE message with the given tag, applying decision 0008's rules for
@@ -165,7 +147,7 @@ func decodeHeader(data []byte, isProtected bool) (map[int64]cbor.RawMessage, err
 	for k, v := range m {
 		switch label := k.(type) {
 		case uint64:
-			if label > 1<<62 {
+			if label > math.MaxInt64 {
 				return nil, unsupported("header label %d", label)
 			}
 			out[int64(label)] = v
@@ -181,7 +163,7 @@ func decodeHeader(data []byte, isProtected bool) (map[int64]cbor.RawMessage, err
 }
 
 // checkHeaders applies decision 0008 rule 2 and returns the algorithm, whether one was present, and the key ID.
-func checkHeaders(protected, unprotected map[int64]cbor.RawMessage) (alg int64, hasAlg bool, kid []byte, err error) {
+func checkHeaders(protected, unprotected map[int64]cbor.RawMessage) (alg Algorithm, hasAlg bool, kid []byte, err error) {
 	for _, h := range []map[int64]cbor.RawMessage{protected, unprotected} {
 		for label := range h {
 			if label != labelAlg && label != labelKID {
@@ -201,9 +183,11 @@ func checkHeaders(protected, unprotected map[int64]cbor.RawMessage) (alg int64, 
 		hasAlg = true
 		switch majorType(rawAlg) {
 		case majorUnsigned, majorNegative:
-			if err := decMode.Unmarshal(rawAlg, &alg); err != nil {
+			var id int64
+			if err := decMode.Unmarshal(rawAlg, &id); err != nil {
 				return 0, false, nil, malformed("alg: %v", err)
 			}
+			alg = Algorithm(id)
 		case majorText:
 			return 0, false, nil, unsupported("text-string algorithm")
 		default:
@@ -227,13 +211,6 @@ func decodeKID(raw cbor.RawMessage) ([]byte, error) {
 		return nil, malformed("kid: %v", err)
 	}
 	return kid, nil
-}
-
-func nonNil(b []byte) []byte {
-	if b == nil {
-		return []byte{}
-	}
-	return b
 }
 
 // claimsFromPayload decodes a verified payload as a claims set, refusing nested CWTs (decision 0008, rule 3).

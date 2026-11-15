@@ -165,6 +165,11 @@ func TestVerifyMessageRejects(t *testing.T) {
 		want  error
 	}{
 		{"alg header names another algorithm than the key's", defaultMac0(t).build(t), hmacKey(cwt.HMAC256x64), cwt.ErrVerification},
+		{"alg header names another algorithm, though the tag is right for the key's", func() []byte {
+			m := defaultMac0(t)
+			m.protectedRaw = encode(t, map[int64]any{1: 4}) // HMAC 256/64 over a full 32-byte HMAC 256/256 tag
+			return m.build(t)
+		}(), hmacKey(cwt.HMAC256x256), cwt.ErrVerification},
 		{"key's algorithm is a signature algorithm for a MAC token", noAlgMac0(t).build(t), cwt.Key{Algorithm: cwt.ES256, Material: testKey}, cwt.ErrMalformed},
 		{"key's algorithm is a MAC algorithm for a signed token", es256Token(t, ecKey, map[int64]any{}, 64), hmacKey(cwt.HMAC256x256), cwt.ErrMalformed},
 		{"key's algorithm is not supported", noAlgMac0(t).build(t), cwt.Key{Algorithm: 999, Material: testKey}, cwt.ErrUnsupported},

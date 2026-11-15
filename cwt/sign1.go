@@ -6,7 +6,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/sha256"
-	"fmt"
 	"math/big"
 
 	"github.com/fxamacker/cbor/v2"
@@ -33,15 +32,15 @@ func verifySign1Payload(token []byte, key crypto.PublicKey) ([]byte, error) {
 func verifySign1Message(msg *coseMessage, key crypto.PublicKey) error {
 	toBeSigned, err := sigStructure(msg.protectedRaw, msg.payload)
 	if err != nil {
-		return fmt.Errorf("%w: building signature structure: %v", ErrMalformed, err)
+		return malformed("building signature structure: %v", err)
 	}
 	switch msg.alg {
-	case algES256:
+	case ES256:
 		return verifyES256(key, toBeSigned, msg.tag)
-	case algPS256:
+	case PS256:
 		return verifyPS256(key, toBeSigned, msg.tag)
 	default:
-		return unsupported("algorithm %d for COSE_Sign1", msg.alg)
+		return unsupported("%v for COSE_Sign1", msg.alg)
 	}
 }
 
@@ -49,13 +48,13 @@ func verifySign1Message(msg *coseMessage, key crypto.PublicKey) error {
 func verifyES256(key crypto.PublicKey, toBeSigned, sig []byte) error {
 	pub, ok := key.(*ecdsa.PublicKey)
 	if !ok || pub == nil {
-		return fmt.Errorf("%w: ES256 needs an *ecdsa.PublicKey, got %T", ErrVerification, key)
+		return unverified("ES256 needs an *ecdsa.PublicKey, got %T", key)
 	}
 	if pub.Curve != elliptic.P256() {
-		return fmt.Errorf("%w: ES256 needs a P-256 key", ErrVerification)
+		return unverified("ES256 needs a P-256 key")
 	}
 	if len(sig) != 64 {
-		return fmt.Errorf("%w: ES256 signature is %d bytes, want 64", ErrVerification, len(sig))
+		return unverified("ES256 signature is %d bytes, want 64", len(sig))
 	}
 	digest := sha256.Sum256(toBeSigned)
 	r := new(big.Int).SetBytes(sig[:32])
@@ -71,10 +70,10 @@ func verifyES256(key crypto.PublicKey, toBeSigned, sig []byte) error {
 func verifyPS256(key crypto.PublicKey, toBeSigned, sig []byte) error {
 	pub, ok := key.(*rsa.PublicKey)
 	if !ok || pub == nil || pub.N == nil {
-		return fmt.Errorf("%w: PS256 needs an *rsa.PublicKey, got %T", ErrVerification, key)
+		return unverified("PS256 needs an *rsa.PublicKey, got %T", key)
 	}
 	if pub.N.BitLen() < 2048 {
-		return fmt.Errorf("%w: PS256 key is %d bits; RFC 8230 requires at least 2048", ErrVerification, pub.N.BitLen())
+		return unverified("PS256 key is %d bits; RFC 8230 requires at least 2048", pub.N.BitLen())
 	}
 	digest := sha256.Sum256(toBeSigned)
 	opts := &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: crypto.SHA256}
