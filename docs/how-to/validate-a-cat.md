@@ -68,6 +68,9 @@ CTA-5007-B separates *valid* tokens from *acceptable* ones, and a later version 
 ## What this version enforces
 
 The package documentation (`go doc ./cat`) lists exactly which claims are enforced, which are refused because
-they cannot be enforced yet, and which are ignored. A token restricted by `catu`, `catnip`, `cnf` or `catdpop` is
-refused as unsupported rather than accepted with the restriction ignored. A token with `catm` or `cath` needs
+they cannot be enforced yet, and which are ignored. A token restricted by `catnip`, `cnf` or `catdpop` is refused
+as unsupported rather than accepted with the restriction ignored. A token with `catm`, `cath` or `catu` needs
 `ValidateRequest`, given a `cat.Request` describing the request; `Validate` refuses it.
+
+For `catu`, set `Request.URI` to the absolute request URI with the token removed, as section 4.6.10 of CTA-5007-B
+describes. The package normalizes the URI itself, so pass it as received otherwise.

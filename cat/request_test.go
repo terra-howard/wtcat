@@ -110,3 +110,48 @@ func TestCathNeedsARequest(t *testing.T) {
 	_, err := validator().Validate(claimsToken(t, map[any]any{315: map[string]any{"Accept": map[int64]any{}}}))
 	wantKind(t, err, cwt.ErrUnsupported)
 }
+
+func TestValidateRequestChecksCatu(t *testing.T) {
+	cases := []struct {
+		name string
+		catu map[int64]any
+		uri  string
+		want error
+	}{
+		{"a path prefix", map[int64]any{3: map[int64]any{1: "/a/"}}, "https://cdn.example/a/b.ts", nil},
+		{"outside the path prefix", map[int64]any{3: map[int64]any{1: "/a/"}}, "https://cdn.example/b/x.ts", cat.ErrURI},
+		{"dot segments cannot climb out of the prefix", map[int64]any{3: map[int64]any{1: "/public/"}}, "https://cdn.example/public/../private/x", cat.ErrURI},
+		{"encoded dot segments cannot either", map[int64]any{3: map[int64]any{1: "/public/"}}, "https://cdn.example/public/%2E%2E/private/x", cat.ErrURI},
+		{"the default port is the empty port", map[int64]any{2: map[int64]any{0: ""}}, "https://cdn.example:443/x", nil},
+		{"another port is not", map[int64]any{2: map[int64]any{0: ""}}, "https://cdn.example:8443/x", cat.ErrURI},
+		{"scheme and host, case-normalized", map[int64]any{0: map[int64]any{0: "https"}, 1: map[int64]any{2: ".example"}}, "HTTPS://CDN.EXAMPLE/x", nil},
+		{"an extension", map[int64]any{8: map[int64]any{0: ".ts"}}, "https://cdn.example/a/seg-1.ts", nil},
+		{"a query", map[int64]any{4: map[int64]any{0: "a=~"}}, "https://cdn.example/x?a=%7E", nil},
+		{"every component must match", map[int64]any{3: map[int64]any{1: "/a/"}, 8: map[int64]any{0: ".mp4"}}, "https://cdn.example/a/b.ts", cat.ErrURI},
+		{"a request URI that cannot be parsed", map[int64]any{3: map[int64]any{1: "/"}}, "/relative", cat.ErrURI},
+		{"an unknown component", map[int64]any{9: map[int64]any{}}, "https://cdn.example/", cwt.ErrUnsupported},
+		{"a negative component", map[int64]any{-1: map[int64]any{}}, "https://cdn.example/", cwt.ErrUnsupported},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := get()
+			req.URI = tc.uri
+			_, err := validator().ValidateRequest(claimsToken(t, map[any]any{312: tc.catu}), req)
+			if tc.want == nil {
+				if err != nil {
+					t.Fatalf("ValidateRequest: %v", err)
+				}
+				return
+			}
+			wantKind(t, err, tc.want)
+			if tc.want == cat.ErrURI {
+				wantKind(t, err, cat.ErrUnacceptable)
+			}
+		})
+	}
+}
+
+func TestCatuNeedsARequest(t *testing.T) {
+	_, err := validator().Validate(claimsToken(t, map[any]any{312: map[int64]any{3: map[int64]any{1: "/"}}}))
+	wantKind(t, err, cwt.ErrUnsupported)
+}

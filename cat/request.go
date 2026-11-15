@@ -13,6 +13,9 @@ import (
 // ErrMethod means the request's method is not one the token's catm claim lists.
 var ErrMethod = fmt.Errorf("%w: catm does not list the request's method", ErrUnacceptable)
 
+// ErrURI means the request URI does not satisfy the token's catu claim, or cannot be parsed to check it.
+var ErrURI = fmt.Errorf("%w: the request URI does not satisfy catu", ErrUnacceptable)
+
 // ErrHeader means a request header does not satisfy the token's cath claim.
 var ErrHeader = fmt.Errorf("%w: a request header does not satisfy cath", ErrUnacceptable)
 
@@ -33,7 +36,7 @@ func (v *Validator) ValidateRequest(token string, req *Request) (*Token, error) 
 
 // checkRequest checks the request claims phase 2 enforces so far.
 func checkRequest(c *Claims, req *Request) error {
-	if c.Methods == nil && c.headers == nil {
+	if c.Methods == nil && c.headers == nil && c.uri == nil {
 		return nil
 	}
 	if req == nil {
@@ -41,6 +44,17 @@ func checkRequest(c *Claims, req *Request) error {
 	}
 	if c.Methods != nil && !slices.Contains(c.Methods, req.Method) {
 		return ErrMethod
+	}
+	if c.uri != nil {
+		parts, err := normalizeURI(req.URI)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrURI, err)
+		}
+		for _, cm := range c.uri {
+			if !cm.match.matches(parts.component(cm.component)) {
+				return fmt.Errorf("%w: component %d", ErrURI, cm.component)
+			}
+		}
 	}
 	for _, h := range c.headers {
 		value, present := headerValue(req.Header, h.name)

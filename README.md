@@ -7,8 +7,8 @@ to decide whether a request may fetch content.
 CBOR Web Tokens and verifies COSE_Mac0 (HMAC 256/64 and 256/256) and COSE_Sign1 (ES256 and PS256), with a
 `Verifier` and, for profiles such as CAT, `VerifyMessage` with keys bound to one algorithm. Package `cat` validates
 Common Access Tokens: strict base64url, deterministic encoding, `iss`, `aud`, `exp` and `nbf` with no leeway, and
-`catv`, and, given the request, `catm` and `cath`. It refuses tokens carrying a claim CTA-5007-B requires recipients
-to enforce that it does not enforce yet (`catu`, `catnip`, `cnf`, `catdpop`), rather than ignoring the restriction. The full list of
+`catv`, and, given the request, `catm`, `cath` and `catu`. It refuses tokens carrying a claim CTA-5007-B requires
+recipients to enforce that it does not enforce yet (`catnip`, `cnf`, `catdpop`), rather than ignoring the restriction. The full list of
 supported claims is in the package documentation. The parsers are fuzzed. The census gate is green.
 
 The specification is CTA-5007-B, *Common Access Token*, free to download from the

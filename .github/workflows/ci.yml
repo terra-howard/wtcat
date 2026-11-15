@@ -30,6 +30,6 @@ jobs:
           for target in FuzzDecodeClaims FuzzVerifyMac0 FuzzVerifySign1 FuzzVerifyMessage; do
             go test ./cwt -run='^$' -fuzz="^${target}\$" -fuzztime=30s
           done
-          for target in FuzzCheckDeterministic FuzzDecodeClaims FuzzValidate; do
+          for target in FuzzCheckDeterministic FuzzDecodeClaims FuzzValidate FuzzNormalizeURI; do
             go test ./cat -run='^$' -fuzz="^${target}\$" -fuzztime=30s
           done

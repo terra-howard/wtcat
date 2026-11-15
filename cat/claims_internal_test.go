@@ -155,14 +155,14 @@ func TestDecodeClaimsIgnoresUnknownAndOptionalClaims(t *testing.T) {
 // Map order is random in Go, so this decodes the same claim set many times: a text-keyed claim must never stop
 // the claims after it from being checked.
 func TestDecodeClaimsKeepsCheckingAfterATextKey(t *testing.T) {
-	claims := map[any]any{int64(312): map[int64]any{}}
+	claims := map[any]any{int64(8): map[int64]any{}}
 	for _, k := range "abcdefghijklmnopqrst" {
 		claims[string(k)] = 0
 	}
 	payload := enc(t, claims)
 	for i := 0; i < 30; i++ {
 		if _, err := decodeClaims(payload); !errors.Is(err, cwt.ErrUnsupported) {
-			t.Fatalf("decode %d: got %v, want catu refused as unsupported", i, err)
+			t.Fatalf("decode %d: got %v, want cnf refused as unsupported", i, err)
 		}
 	}
 }
@@ -207,6 +207,10 @@ func TestDecodeClaimsRejectsMalformed(t *testing.T) {
 		{"catv negative", enc(t, map[int64]any{310: -1})},
 		{"catv tagged", enc(t, map[int64]any{310: raw(t, "d903e801")})},
 		{"catm not an array", enc(t, map[int64]any{313: "GET"})},
+		{"catu not a map", enc(t, map[int64]any{312: []any{}})},
+		{"catu with a text component key", enc(t, map[int64]any{312: map[string]any{"path": map[int64]any{}}})},
+		{"catu tagged", enc(t, map[int64]any{312: raw(t, "d903e8a0")})},
+		{"catu with a malformed match", enc(t, map[int64]any{312: map[int64]any{3: map[int64]any{0: 1}}})},
 		{"catm empty", enc(t, map[int64]any{313: []string{}})},
 		{"catm holding a non-string", enc(t, map[int64]any{313: []any{"GET", 1}})},
 		{"catm holding a tagged string", enc(t, map[int64]any{313: []any{raw(t, "d903e863474554")}})},
@@ -234,7 +238,6 @@ func TestDecodeClaimsRefusesUnsupported(t *testing.T) {
 		{"nbf as a float before 64-bit seconds", enc(t, map[int64]any{5: -1e19})},
 		{"cnf, not yet enforced", enc(t, map[int64]any{8: map[int64]any{}})},
 		{"catnip, not yet enforced", enc(t, map[int64]any{311: []any{}})},
-		{"catu, not yet enforced", enc(t, map[int64]any{312: map[int64]any{}})},
 		{"catdpop, not yet enforced", enc(t, map[int64]any{321: map[int64]any{}})},
 	}
 	for _, tc := range cases {

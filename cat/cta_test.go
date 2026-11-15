@@ -20,9 +20,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/fxamacker/cbor/v2"
 
 	"github.com/terra-howard/wtcat/cat"
 	"github.com/terra-howard/wtcat/cwt"
@@ -76,17 +77,50 @@ func validatorWith(key cwt.Key) *cat.Validator {
 	}
 }
 
-// Phase 1 of decision 0015: the examples are well formed, deterministically encoded and authentic, and they carry
-// catu, which phase 1 does not enforce yet, so Validate refuses them as unsupported. Reaching that refusal means
-// every earlier step passed. In phase 2 these tests change to accept the examples for a matching request.
-func TestCTAExamplesReachTheClaimsAndAreRefusedForCatu(t *testing.T) {
+// catuPrefix reads the path prefix the example's own catu claim requires, from the verified token, so that no
+// value from the document is written into this repository.
+func catuPrefix(t *testing.T, token string, key cwt.Key) string {
+	t.Helper()
+	raw, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, err := cwt.VerifyMessage(raw, func([]byte) (cwt.Key, error) { return key, nil })
+	if err != nil {
+		t.Fatalf("VerifyMessage: %v", err)
+	}
+	var claims struct {
+		Catu map[int64]map[int64]string `cbor:"312,keyasint"`
+	}
+	if err := cbor.Unmarshal(msg.Payload, &claims); err != nil {
+		t.Fatalf("reading catu: %v", err)
+	}
+	prefix, ok := claims.Catu[3][1]
+	if !ok {
+		t.Fatalf("the example's catu has no path prefix match: %v", claims.Catu)
+	}
+	return prefix
+}
+
+// The examples restrict the path by a prefix match in catu (decision 0017's phase 2). Each is accepted for a URI
+// under that prefix before its exp, and refused outside it.
+func TestCTAExamplesAreAcceptedOnlyUnderTheirPathPrefix(t *testing.T) {
 	ex := loadCTAExamples(t)
 	keys := ctaKeys(t, ex)
 	for name, token := range map[string]string{"HMAC 256/256": ex.HMACToken, "PS256": ex.PS256Token} {
 		t.Run(name, func(t *testing.T) {
-			_, err := validatorWith(keys[name]).Validate(token)
-			if !errors.Is(err, cwt.ErrUnsupported) || !strings.Contains(err.Error(), "catu") {
-				t.Fatalf("got %v, want the unsupported-claim refusal for catu", err)
+			prefix := catuPrefix(t, token, keys[name])
+			v := validatorWith(keys[name])
+			inside := &cat.Request{Method: "GET", URI: "https://cdn.example" + prefix + "index.m3u8"}
+			if _, err := v.ValidateRequest(token, inside); err != nil {
+				t.Fatalf("under the prefix: %v", err)
+			}
+			outside := &cat.Request{Method: "GET", URI: "https://cdn.example/elsewhere/index.m3u8"}
+			if _, err := v.ValidateRequest(token, outside); !errors.Is(err, cat.ErrURI) {
+				t.Fatalf("outside the prefix: got %v, want cat.ErrURI", err)
+			}
+			if _, err := v.Validate(token); !errors.Is(err, cwt.ErrUnsupported) {
+				t.Fatalf("without a request: got %v, want cwt.ErrUnsupported", err)
 			}
 		})
 	}

@@ -23,7 +23,14 @@ type Claims struct {
 	Version   uint64       // catv (310); 1 when absent (section 4.6.8)
 	Methods   []string     // catm (313): the methods the token may be used with
 
-	headers []headerMatch // cath (315); nil when absent
+	headers []headerMatch    // cath (315); nil when absent
+	uri     []componentMatch // catu (312); nil when absent
+}
+
+// componentMatch is one member of a catu claim: a URI component (0 to 8) and its match.
+type componentMatch struct {
+	component int64
+	match     *match
 }
 
 // headerMatch is one member of a cath claim.
@@ -52,7 +59,6 @@ const (
 var notYetEnforced = map[int64]string{
 	8:   "cnf",
 	311: "catnip",
-	312: "catu",
 	321: "catdpop",
 }
 
@@ -132,7 +138,7 @@ func decodeClaims(payload []byte) (*Claims, error) {
 // decodeClaim decodes one claim value into c if the key is one this package knows.
 func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	switch key {
-	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath:
+	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu:
 	default:
 		return nil
 	}
@@ -165,6 +171,8 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 		c.Methods, err = textArray(value, key)
 	case claimCath:
 		c.headers, err = decodeCath(value)
+	case claimCatu:
+		c.uri, err = decodeCatu(value)
 	case claimCatv:
 		if majorType(value) != majorUnsigned {
 			return malformed("claim 310 (catv) is not an unsigned integer")
@@ -308,6 +316,36 @@ func decodeCath(value cbor.RawMessage) ([]headerMatch, error) {
 			return nil, err
 		}
 		out = append(out, headerMatch{name: name, match: hm})
+	}
+	return out, nil
+}
+
+// decodeCatu decodes a catu claim: URI components to matches (section 4.6.10). A component other than 0 to 8
+// cannot be checked, so the token is unsupported.
+func decodeCatu(value cbor.RawMessage) ([]componentMatch, error) {
+	var m map[any]cbor.RawMessage
+	if err := decMode.Unmarshal(value, &m); err != nil || m == nil {
+		return nil, malformed("claim 312 (catu) is not a map")
+	}
+	out := make([]componentMatch, 0, len(m))
+	for k, v := range m {
+		var component int64
+		switch kk := k.(type) {
+		case uint64:
+			if kk > 8 {
+				return nil, unsupported("claim 312 (catu) has URI component %d", kk)
+			}
+			component = int64(kk)
+		case int64:
+			return nil, unsupported("claim 312 (catu) has URI component %d", kk)
+		default:
+			return nil, malformed("claim 312 (catu) has a key of type %T", k)
+		}
+		cm, err := decodeMatch(v, fmt.Sprintf("catu component %d", component))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, componentMatch{component: component, match: cm})
 	}
 	return out, nil
 }
