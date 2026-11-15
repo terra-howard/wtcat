@@ -6,6 +6,7 @@
 //
 // Where things are. Each source file's tests are in the test file of the same name.
 //
-//	locate.go  Find, Located, Options and RemoveFromURI (section 4.6.10's removal rule)
-//	field.go   the Structured Field item parser for the token field (RFC 9651)
+//	authorize.go  Authorizer: judging a request's tokens, and the middleware (401, Cache-Control private, stripping)
+//	locate.go     Find, Located, Options and RemoveFromURI (section 4.6.10's removal rule)
+//	field.go      the Structured Field item parser for the token field (RFC 9651)
 package cathttp

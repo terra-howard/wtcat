@@ -11,6 +11,10 @@ Common Access Tokens: strict base64url, deterministic encoding, `iss`, `aud`, `e
 which CTA-5007-B requires recipients to enforce and which need DPoP, not built yet, rather than ignoring them. The full list of
 supported claims is in the package documentation. The parsers are fuzzed. The census gate is green.
 
+Package `cathttp` finds tokens in HTTP requests as section 4.4 orders them, removes each from the URI before `catu`,
+and wraps a handler: 401 without an acceptable token, `Cache-Control: private` whenever a token was processed, and
+token-bearing fields removed before forwarding.
+
 **Known defect in `cwt`:** it rejects an `aud` claim that is an array, and refuses floating-point dates, although RFC
 8392 allows both. The fix changes protected tests, so it waits as a ready patch for the owner
 ([decision 0016](docs/decisions/0016-cwt-claims-shape.md)). Package `cat` is not affected; it decodes claims itself.

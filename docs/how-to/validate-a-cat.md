@@ -4,7 +4,17 @@ This guide shows how to check a CAT with package `cat`. It assumes you have the 
 request, and know your issuers' keys. A runnable version is `ExampleValidator` in
 [cat/example_test.go](../../cat/example_test.go); `go test ./cat` checks that its output is still correct.
 
-Finding the token in a request (path, query, cookie, header) is not part of this package yet.
+To protect HTTP content, wrap your handler with package `cathttp` instead of calling `Validate` yourself:
+
+```go
+auth := &cathttp.Authorizer{Validator: v} // v from step 2
+http.Handle("/content/", auth.Middleware(contentHandler))
+```
+
+It finds tokens where section 4.4 of CTA-5007-B allows (the `CTA-Common-Access-Token` field alone if present,
+otherwise `;CAT=` and `?CAT=` parameters, then a `CAT` cookie), removes each from the URI before `catu` is checked,
+answers 401 when no token is acceptable, and marks responses `Cache-Control: private`. Set `ClientIP` and `Scheme`
+if you run behind a proxy. The steps below describe the `Validator` it uses.
 
 ## 1. Describe your keys
 

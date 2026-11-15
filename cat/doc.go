@@ -27,7 +27,7 @@
 // them. Encrypted tokens and messages with more than one signer or recipient are not supported.
 //
 // For catu, Request.URI must be the absolute request URI with the token already removed, as section 4.6.10
-// describes; this package normalizes it (RFC 9110 Section 4.2.3, RFC 3986 Sections 6.2.2 and 6.2.3) before
+// describes (package cathttp does this); this package normalizes it (RFC 9110 Section 4.2.3, RFC 3986 Sections 6.2.2 and 6.2.3) before
 // matching, so a default port becomes the empty port component. A catnip claim naming a full address, or a
 // prefix longer than /24 (IPv4) or /56 (IPv6), is malformed: section 4.6.9 requires such values to be encrypted,
 // and this package does not decrypt tokens.
