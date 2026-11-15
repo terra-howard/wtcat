@@ -29,7 +29,8 @@ type Claims struct {
 	jkt     []byte           // cnf (8) jkt (323); nil when cnf is absent
 	// dpopWindow is the window setting of catdpop (321), in seconds; nil when absent.
 	dpopWindow *uint64
-	replay     *uint64 // catreplay (308); nil when absent
+	replay     *uint64  // catreplay (308); nil when absent
+	countries  []string // catgeoiso3166 (316); nil when absent
 }
 
 // componentMatch is one member of a catu claim: a URI component (0 to 8) and its match.
@@ -143,7 +144,7 @@ func decodeClaims(payload []byte) (*Claims, error) {
 // decodeClaim decodes one claim value into c if the key is one this package knows.
 func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	switch key {
-	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu, claimCatnip, claimCnf, claimCatdpop, claimCatreplay:
+	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu, claimCatnip, claimCnf, claimCatdpop, claimCatreplay, claimCatgeoiso3166:
 	default:
 		return nil
 	}
@@ -180,6 +181,8 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 		c.uri, err = decodeCatu(value)
 	case claimCatnip:
 		c.network, err = decodeCatnip(value)
+	case claimCatgeoiso3166:
+		c.countries, err = decodeCountries(value)
 	case claimCatreplay:
 		if majorType(value) != majorUnsigned {
 			return malformed("claim 308 (catreplay) is not an unsigned integer")

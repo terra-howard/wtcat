@@ -36,6 +36,9 @@ type Request struct {
 	// ViaDPoPScheme reports that the token arrived in Authorization: DPoP, so it must be bound by cnf and the
 	// proof must carry ath (RFC 9449 Section 7).
 	ViaDPoPScheme bool
+	// Location is where the client was found to be, for catgeoiso3166. Nil means the recipient does not locate
+	// clients, and the claim is ignored (decision 0021).
+	Location *Location
 }
 
 // ValidateRequest is Validate for a token presented with a request, so that the token's request claims can be

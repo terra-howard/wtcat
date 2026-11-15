@@ -132,6 +132,9 @@ func (v *Validator) validate(token string, req *Request) (*Token, error) {
 	if err := v.checkConfirmation(claims, req, token, t); err != nil {
 		return nil, err
 	}
+	if err := checkLocation(claims, req); err != nil {
+		return nil, err
+	}
 	// Last, so that a refused token never uses up its cti. Values above 2 are undefined and treated as 1.
 	if claims.replay != nil && *claims.replay != 0 && claims.CWTID != nil && v.Replay != nil && v.Replay(claims.CWTID) {
 		return nil, ErrReplay

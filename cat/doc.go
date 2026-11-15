@@ -19,12 +19,14 @@
 //	cnf (8)     with jkt: the request's DPoP proof must be made with that key and match the request (needs ValidateRequest)
 //	catdpop (321) sets the proof's window; crit is honoured; jti never causes a refusal (decision 0020)
 //	catreplay (308) with Validator.Replay set: 1 or 2 refuses a cti seen before; 0 never refuses (decision 0021)
+//	catgeoiso3166 (316) with Request.Location set: the client must be in a listed country or region
 //
 // It decodes and type-checks sub (2), iat (6) and cti (7), which are informational here. Every claim CTA-5007-B
 // requires recipients to support is enforced; a cnf with a confirmation method other than jkt is refused as
 // unsupported. Every other claim is
 // ignored, as section 4.5 requires of claims a recipient does not support, including the optional catpor,
-// catalpn, the geographic claims, cattpk, catifdata, catif and catr, and catreplay when Replay is not set.
+// catalpn, catgeocoord, geohash, catgeoalt, cattpk, catifdata, catif and catr, and catreplay and catgeoiso3166
+// when the caller does not supply what they need.
 //
 // Algorithms: HMAC 256/64, HMAC 256/256, ES256 and PS256, in COSE_Mac0 or COSE_Sign1, each key bound to one of
 // them. Encrypted tokens and messages with more than one signer or recipient are not supported.
@@ -50,6 +52,7 @@
 //	match.go          the match types of section 4.6.10, used by cath and catu, and the POSIX regex checks
 //	uri.go            request URI normalization and the nine catu components
 //	network.go        catnip: ASNs and RFC 9164 prefixes
+//	geo.go            catgeoiso3166 and Location
 //	dpop.go           DPoP proofs: compact JWS with ES256 or PS256, keys from jwk, RFC 7638 thumbprints (decision 0020)
 //	decode.go         the token's text form: strict base64url and the length limit
 //	deterministic.go  the deterministic-encoding check of section 4.5
