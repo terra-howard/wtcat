@@ -51,3 +51,12 @@ the specification allows (section 4.5). Which should be enforced, how, and in wh
 - **`geohash` (282) and `catgeoalt` (318)** need the client's coordinates and altitude, which few recipients have.
   They wait until a caller needs them.
 
+## Update, 2026-11-14: `catalpn` and `cattpk`, after reading sections 4.6.12 and 4.6.18
+
+Both are enforced when the caller supplies `Request.Connection`, and ignored when it is nil. With a `Connection`,
+`catalpn` refuses a request not made over TLS or whose ALPN was not determined, as section 4.6.12 requires, and one
+whose ALPN is not listed, compared byte for byte; `cattpk` refuses a request whose client certificate chain holds no
+certificate with that SubjectPublicKeyInfo. `cathttp` fills `Connection` from the request's TLS state by default.
+Behind a proxy that terminates TLS that default says "not TLS", so such tokens are refused until the operator
+supplies the connection facts the proxy passes on: the safe failure.
+
