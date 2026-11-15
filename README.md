@@ -40,6 +40,7 @@ so later projects can reuse it.
 - [docs/how-to/run-the-cta-example-tests.md](docs/how-to/run-the-cta-example-tests.md) runs the tests against
   CTA-5007-B's own examples from your copy.
 - [docs/decisions/](docs/decisions/) holds one record per decision, proposed or accepted.
+- [docs/reference/errors.md](docs/reference/errors.md) lists every error the packages return, and what it means.
 - [docs/reference/measurements.md](docs/reference/measurements.md) records each task's prediction and outcome.
 - [AGENTS.md](AGENTS.md) is the steering file every coding agent reads first.
 
