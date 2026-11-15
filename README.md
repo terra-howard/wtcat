@@ -29,6 +29,8 @@ against its own HMAC 256/256 and PS256 examples: `pdftotext` it (without `-layou
 There are two deliverables of equal weight: a validator worth using, and the development process it is built with, written down in [docs/explanation/process.md](docs/explanation/process.md)
 so later projects can reuse it.
 
+- [docs/tutorials/protect-a-server.md](docs/tutorials/protect-a-server.md) walks a newcomer through protecting a small
+  server end to end.
 - [docs/explanation/design.md](docs/explanation/design.md) explains why the validator is built the way it is.
 - [docs/explanation/process.md](docs/explanation/process.md) explains how work happens here and why.
 - [docs/how-to/validate-a-cat.md](docs/how-to/validate-a-cat.md) shows how to validate a CAT with package `cat`.
