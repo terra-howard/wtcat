@@ -41,16 +41,22 @@ type Authorizer struct {
 // Authorize returns the first acceptable token in the request. If none is acceptable, the error is that of the
 // first valid but unacceptable token, or else of the first token, so that its kind can be tested with errors.Is.
 func (a *Authorizer) Authorize(r *http.Request) (*cat.Token, error) {
+	tok, _, err := a.authorize(r)
+	return tok, err
+}
+
+// authorize is Authorize, also returning where the accepted token was found.
+func (a *Authorizer) authorize(r *http.Request) (*cat.Token, Located, error) {
 	limit, err := a.limit()
 	if err != nil {
-		return nil, err
+		return nil, Located{}, err
 	}
 	tokens, err := Find(r, a.Options)
 	if err != nil {
-		return nil, err
+		return nil, Located{}, err
 	}
 	if len(tokens) == 0 {
-		return nil, ErrNoToken
+		return nil, Located{}, ErrNoToken
 	}
 	if len(tokens) > limit {
 		tokens = tokens[:limit] // section 4.4 lets a recipient treat the rest as absent
@@ -69,7 +75,7 @@ func (a *Authorizer) Authorize(r *http.Request) (*cat.Token, error) {
 		}
 		tok, err := a.Validator.ValidateRequest(t.Text, req)
 		if err == nil {
-			return tok, nil
+			return tok, t, nil
 		}
 		if firstErr == nil {
 			firstErr = err
@@ -79,9 +85,9 @@ func (a *Authorizer) Authorize(r *http.Request) (*cat.Token, error) {
 		}
 	}
 	if firstUnacceptable != nil {
-		return nil, firstUnacceptable
+		return nil, Located{}, firstUnacceptable
 	}
-	return nil, firstErr
+	return nil, Located{}, firstErr
 }
 
 func (a *Authorizer) limit() (int, error) {
@@ -148,13 +154,22 @@ func (a *Authorizer) Middleware(next http.Handler) http.Handler {
 	}
 	opts := a.Options.withDefaults()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, err := a.Authorize(r)
-		if !errors.Is(err, ErrNoToken) {
-			w = &privateWriter{ResponseWriter: w}
-		}
-		if err != nil {
+		tok, loc, err := a.authorize(r)
+		if errors.Is(err, ErrNoToken) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
+		}
+		pw := &privateWriter{ResponseWriter: w}
+		if err != nil {
+			http.Error(pw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+		if location, status, add := a.planRenewal(r, tok, loc, opts); location != "" {
+			pw.Header().Set("Location", location)
+			pw.WriteHeader(status)
+			return
+		} else if add != nil {
+			pw.before = add
 		}
 		forwarded := r.Clone(r.Context())
 		forwarded.Header.Del(opts.Field)
@@ -163,7 +178,7 @@ func (a *Authorizer) Middleware(next http.Handler) http.Handler {
 			strings.EqualFold(scheme, "Bearer") && opts.Bearer {
 			forwarded.Header.Del("Authorization")
 		}
-		next.ServeHTTP(w, forwarded)
+		next.ServeHTTP(pw, forwarded)
 	})
 }
 
@@ -183,11 +198,15 @@ func removeCookie(r *http.Request, name string) {
 type privateWriter struct {
 	http.ResponseWriter
 	wroteHeader bool
+	before      func(http.Header) // run once, just before the header is written: a renewal cookie or field
 }
 
 func (p *privateWriter) WriteHeader(code int) {
 	if !p.wroteHeader {
 		p.wroteHeader = true
+		if p.before != nil {
+			p.before(p.Header())
+		}
 		ensurePrivate(p.Header())
 	}
 	p.ResponseWriter.WriteHeader(code)
