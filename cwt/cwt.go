@@ -11,10 +11,10 @@ func isSentinel(err error) bool {
 type Claims struct {
 	Issuer    string           // claim 1, iss
 	Subject   string           // claim 2, sub
-	Audience  string           // claim 3, aud
-	Expiry    *int64           // claim 4, exp, seconds since the epoch; nil when absent
-	NotBefore *int64           // claim 5, nbf
-	IssuedAt  *int64           // claim 6, iat
+	Audience  []string         // claim 3, aud: a single string becomes one element; nil when absent
+	Expiry    *NumericDate     // claim 4, exp; nil when absent
+	NotBefore *NumericDate     // claim 5, nbf
+	IssuedAt  *NumericDate     // claim 6, iat
 	CWTID     []byte           // claim 7, cti
 	Other     map[int64][]byte // every other claim, by key, as its raw CBOR encoding
 }

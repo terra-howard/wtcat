@@ -46,7 +46,7 @@ func mustHexBytes(t *testing.T, s string) []byte {
 	return b
 }
 
-func ptr(v int64) *int64 { return &v }
+func date(v int64) *cwt.NumericDate { return cwt.NewNumericDate(v) }
 
 // Seeds from RFC 8392 Appendix A (also used, verbatim, by the protected tests in conformance/).
 const (

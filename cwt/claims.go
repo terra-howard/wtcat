@@ -27,6 +27,7 @@ const (
 	majorNegative = 1
 	majorBytes    = 2
 	majorText     = 3
+	majorArray    = 4
 	majorTag      = 6
 	majorSimple   = 7
 )
@@ -66,7 +67,7 @@ func DecodeClaims(data []byte) (*Claims, error) {
 		case 2:
 			err = decodeText(raw, key, &c.Subject)
 		case 3:
-			err = decodeText(raw, key, &c.Audience)
+			c.Audience, err = decodeAudience(raw)
 		case 4:
 			c.Expiry, err = decodeDate(raw, key)
 		case 5:
@@ -115,18 +116,47 @@ func decodeText(raw []byte, key int64, dst *string) error {
 	return decMode.Unmarshal(raw, dst)
 }
 
-func decodeDate(raw []byte, key int64) (*int64, error) {
+// decodeDate accepts an integer or a floating-point NumericDate (RFC 8392 Section 2, decision 0016).
+func decodeDate(raw []byte, key int64) (*NumericDate, error) {
 	switch {
 	case isFloat(raw):
-		return nil, fmt.Errorf("%w: claim %d is a floating-point date", ErrUnsupported, key)
+		var f float64
+		if err := decMode.Unmarshal(raw, &f); err != nil {
+			return nil, fmt.Errorf("%w: claim %d: %v", ErrMalformed, key, err)
+		}
+		return dateFromFloat(f, key)
 	case majorType(raw) != majorUnsigned && majorType(raw) != majorNegative:
-		return nil, fmt.Errorf("%w: claim %d is not an integer date", ErrMalformed, key)
+		return nil, fmt.Errorf("%w: claim %d is not a date", ErrMalformed, key)
 	}
 	var v int64
 	if err := decMode.Unmarshal(raw, &v); err != nil {
 		return nil, fmt.Errorf("%w: claim %d: %v", ErrMalformed, key, err)
 	}
-	return &v, nil
+	return NewNumericDate(v), nil
+}
+
+// decodeAudience accepts a text string or an array of untagged text strings (RFC 8392 Section 3.1.3).
+func decodeAudience(raw []byte) ([]string, error) {
+	if majorType(raw) == majorText {
+		var s string
+		if err := decodeText(raw, 3, &s); err != nil {
+			return nil, err
+		}
+		return []string{s}, nil
+	}
+	var items []cbor.RawMessage
+	if majorType(raw) != majorArray || decMode.Unmarshal(raw, &items) != nil {
+		return nil, fmt.Errorf("%w: claim 3 (aud) is neither a text string nor an array of them", ErrMalformed)
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		var s string
+		if err := decodeText(item, 3, &s); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, nil
 }
 
 // wrapMalformed leaves errors that already carry one of this package's sentinels alone, and marks any other

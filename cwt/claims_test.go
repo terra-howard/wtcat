@@ -35,7 +35,7 @@ func TestDecodeClaimsAcceptsDatesBeforeTheEpoch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeClaims: %v", err)
 	}
-	if c.Expiry == nil || *c.Expiry != -100 {
+	if c.Expiry == nil || c.Expiry.Unix() != -100 || c.Expiry.Fraction() != 0 {
 		t.Fatalf("exp = %v, want -100", c.Expiry)
 	}
 }
@@ -54,7 +54,11 @@ func TestDecodeClaimsRejects(t *testing.T) {
 		{"aud not text", encode(t, map[int64]any{3: true}), cwt.ErrMalformed},
 		{"cti not bytes", encode(t, map[int64]any{7: "0b71"}), cwt.ErrMalformed},
 		{"exp not a number", encode(t, map[int64]any{4: "soon"}), cwt.ErrMalformed},
-		{"exp floating point", encode(t, map[int64]any{4: 1444064944.5}), cwt.ErrUnsupported},
+		{"exp NaN", fromHex(t, "a104f97e00"), cwt.ErrMalformed},
+		{"exp infinity", fromHex(t, "a104f97c00"), cwt.ErrMalformed},
+		{"exp floating point beyond int64 seconds", encode(t, map[int64]any{4: 1e19}), cwt.ErrUnsupported},
+		{"aud array holding a non-string", encode(t, map[int64]any{3: []any{"a", 1}}), cwt.ErrMalformed},
+		{"aud array holding a tagged string", encode(t, map[int64]any{3: []any{cbor.Tag{Number: 32, Content: "a"}}}), cwt.ErrMalformed},
 		{"exp too large for int64", encode(t, map[int64]any{4: uint64(math.MaxUint64)}), cwt.ErrMalformed},
 		{"exp tagged as a date", encode(t, map[int64]any{4: cbor.Tag{Number: 1, Content: 1444064944}}), cwt.ErrMalformed},
 		{"iss tagged", encode(t, map[int64]any{1: cbor.Tag{Number: 32, Content: "coap://as.example.com"}}), cwt.ErrMalformed},
@@ -73,16 +77,34 @@ func TestDecodeClaimsRejects(t *testing.T) {
 	}
 }
 
-// Added after Gremlins (task 11). Kills negations of the half and single precision comparisons in isFloat, and confirms a non-float simple value
-// in a date is malformed rather than unsupported.
+// RFC 8392 Section 2 lets a NumericDate be a float of any precision (decision 0016); a non-float simple value is
+// malformed.
 func TestDecodeClaimsDateEncodings(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		data     []byte
+		sec      int64
+		fraction float64
+	}{
+		{"half-precision float", fromHex(t, "a104f93c00"), 1, 0},                      // {4: 1.0 as float16}
+		{"single-precision float", encode(t, map[int64]any{4: float32(1.5)}), 1, 0.5}, // float32
+		{"double-precision float", encode(t, map[int64]any{4: 1444064944.5}), 1444064944, 0.5},
+		{"negative float", encode(t, map[int64]any{4: -1.25}), -2, 0.75},
+	} {
+		c, err := cwt.DecodeClaims(tc.data)
+		if err != nil {
+			t.Errorf("%s: %v", tc.name, err)
+			continue
+		}
+		if c.Expiry.Unix() != tc.sec || c.Expiry.Fraction() != tc.fraction {
+			t.Errorf("%s: exp = (%d, %v), want (%d, %v)", tc.name, c.Expiry.Unix(), c.Expiry.Fraction(), tc.sec, tc.fraction)
+		}
+	}
 	cases := []struct {
 		name string
 		data []byte
 		want error
 	}{
-		{"half-precision float", fromHex(t, "a104f93c00"), cwt.ErrUnsupported},                    // {4: 1.0 as float16}
-		{"single-precision float", encode(t, map[int64]any{4: float32(1.5)}), cwt.ErrUnsupported}, // float32
 		{"true", encode(t, map[int64]any{4: true}), cwt.ErrMalformed},
 		{"null", fromHex(t, "a104f6"), cwt.ErrMalformed}, // {4: null}
 	}
@@ -135,4 +157,32 @@ func FuzzDecodeClaims(f *testing.F) {
 			t.Fatal("nil claims without an error")
 		}
 	})
+}
+
+// RFC 8392 Section 3.1.3 lets aud be a string or an array of strings (decision 0016).
+func TestDecodeClaimsAudienceShapes(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		aud  any
+		want []string
+	}{
+		{"a string", "a", []string{"a"}},
+		{"an array", []string{"a", "b"}, []string{"a", "b"}},
+		{"an empty array", []string{}, []string{}},
+	} {
+		c, err := cwt.DecodeClaims(encode(t, map[int64]any{3: tc.aud}))
+		if err != nil {
+			t.Errorf("%s: %v", tc.name, err)
+			continue
+		}
+		if c.Audience == nil || len(c.Audience) != len(tc.want) {
+			t.Errorf("%s: Audience = %#v, want %#v", tc.name, c.Audience, tc.want)
+			continue
+		}
+		for i := range tc.want {
+			if c.Audience[i] != tc.want[i] {
+				t.Errorf("%s: Audience = %q, want %q", tc.name, c.Audience, tc.want)
+			}
+		}
+	}
 }

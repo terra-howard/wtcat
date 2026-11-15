@@ -80,8 +80,8 @@ func checkClaimsA1(t *testing.T, c *cwt.Claims) {
 	if c.Subject != "erikw" {
 		t.Errorf("sub = %q, want %q", c.Subject, "erikw")
 	}
-	if c.Audience != "coap://light.example.com" {
-		t.Errorf("aud = %q, want %q", c.Audience, "coap://light.example.com")
+	if len(c.Audience) != 1 || c.Audience[0] != "coap://light.example.com" {
+		t.Errorf("aud = %q, want [%q]", c.Audience, "coap://light.example.com")
 	}
 	checkDate(t, "exp", c.Expiry, 1444064944)
 	checkDate(t, "nbf", c.NotBefore, 1443944944)
@@ -94,12 +94,12 @@ func checkClaimsA1(t *testing.T, c *cwt.Claims) {
 	}
 }
 
-func checkDate(t *testing.T, name string, got *int64, want int64) {
+func checkDate(t *testing.T, name string, got *cwt.NumericDate, want int64) {
 	t.Helper()
 	if got == nil {
 		t.Errorf("%s is absent, want %d", name, want)
-	} else if *got != want {
-		t.Errorf("%s = %d, want %d", name, *got, want)
+	} else if got.Unix() != want || got.Fraction() != 0 {
+		t.Errorf("%s = %d and %v, want %d exactly", name, got.Unix(), got.Fraction(), want)
 	}
 }
 
