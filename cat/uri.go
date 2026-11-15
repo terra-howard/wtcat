@@ -13,14 +13,25 @@ type uriParts struct {
 	scheme, host, port, path, query string
 }
 
+// The catu components (section 4.6.10).
+const (
+	componentScheme = iota
+	componentHost
+	componentPort
+	componentPath
+	componentQuery
+	componentParentPath
+	componentFilename
+	componentStem
+	componentExtension
+)
+
 // defaultPorts are the ports RFC 9110 Section 4.2.3 removes in normalization.
 var defaultPorts = map[string]string{"http": "80", "https": "443"}
 
 // normalizeURI splits an absolute URI with an authority, as RFC 3986 Appendix B does, and normalizes it.
 func normalizeURI(uri string) (uriParts, error) {
-	if i := strings.IndexByte(uri, '#'); i >= 0 {
-		uri = uri[:i] // a fragment is never part of a request
-	}
+	uri, _, _ = strings.Cut(uri, "#") // a fragment is never part of a request
 	colon := strings.IndexByte(uri, ':')
 	if colon <= 0 || strings.ContainsAny(uri[:colon], "/?") {
 		return uriParts{}, errors.New("not an absolute URI")
@@ -38,10 +49,7 @@ func normalizeURI(uri string) (uriParts, error) {
 		end = len(rest)
 	}
 	authority, rest := rest[:end], rest[end:]
-	path, query := rest, ""
-	if i := strings.IndexByte(rest, '?'); i >= 0 {
-		path, query = rest[:i], rest[i+1:]
-	}
+	path, query, _ := strings.Cut(rest, "?")
 
 	if at := strings.LastIndexByte(authority, '@'); at >= 0 {
 		authority = authority[at+1:] // userinfo is not a catu component
@@ -209,39 +217,41 @@ func removeDotSegments(in string) string {
 	return strings.Join(out, "")
 }
 
-// component returns catu component key 0 to 8 (section 4.6.10).
+// component returns a catu component, componentScheme to componentExtension (section 4.6.10). A filename that
+// starts with a dot is all extension.
 func (p uriParts) component(key int64) string {
 	switch key {
-	case 0:
+	case componentScheme:
 		return p.scheme
-	case 1:
+	case componentHost:
 		return p.host
-	case 2:
+	case componentPort:
 		return p.port
-	case 3:
+	case componentPath:
 		return p.path
-	case 4:
+	case componentQuery:
 		return p.query
 	}
 	slash := strings.LastIndexByte(p.path, '/')
 	filename := p.path[slash+1:]
 	stem := filename
-	if dot := strings.LastIndexByte(filename, '.'); strings.HasPrefix(filename, ".") {
+	switch dot := strings.LastIndexByte(filename, '.'); {
+	case strings.HasPrefix(filename, "."):
 		stem = ""
-	} else if dot >= 0 {
+	case dot >= 0:
 		stem = filename[:dot]
 	}
 	switch key {
-	case 5:
+	case componentParentPath:
 		if slash < 0 {
 			return ""
 		}
 		return p.path[:slash]
-	case 6:
+	case componentFilename:
 		return filename
-	case 7:
+	case componentStem:
 		return stem
-	default: // 8
+	default: // componentExtension
 		return filename[len(stem):]
 	}
 }

@@ -28,6 +28,8 @@ func TestCatalpnAndCattpk(t *testing.T) {
 		{"an unlisted ALPN", alpn, over(&cat.Connection{TLS: true, ALPN: "http/1.1"}), cat.ErrConnection},
 		{"an ALPN in another case", alpn, over(&cat.Connection{TLS: true, ALPN: "H2"}), cat.ErrConnection},
 		{"no ALPN determined", alpn, over(&cat.Connection{TLS: true}), cat.ErrConnection},
+		{"no ALPN determined, though catalpn lists an empty one", claimsToken(t, map[any]any{314: [][]byte{{}}}),
+			over(&cat.Connection{TLS: true}), cat.ErrConnection},
 		{"not over TLS", alpn, over(&cat.Connection{ALPN: "h2"}), cat.ErrConnection},
 		{"catalpn, connection not supplied", alpn, get(), nil},
 		{"a matching client key in the chain", tpk, over(&cat.Connection{TLS: true, ClientKeys: [][]byte{[]byte("other"), key}}), nil},

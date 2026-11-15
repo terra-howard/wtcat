@@ -134,7 +134,7 @@ func decodeRegex(v cbor.RawMessage, where string) (*regexMatch, error) {
 	}
 	rm := &regexMatch{re: re}
 	for _, item := range items[1:] {
-		if len(item) == 1 && item[0] == 0xf6 { // null
+		if len(item) == 1 && item[0] == cborNull {
 			rm.groups = append(rm.groups, nil)
 			continue
 		}

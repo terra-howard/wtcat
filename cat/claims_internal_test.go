@@ -168,7 +168,7 @@ func TestDecodeClaimsKeepsCheckingAfterATextKey(t *testing.T) {
 		claims[string(k)] = 0
 	}
 	payload := enc(t, claims)
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		if _, err := decodeClaims(payload); !errors.Is(err, cwt.ErrUnsupported) {
 			t.Fatalf("decode %d: got %v, want cnf without jkt refused as unsupported", i, err)
 		}

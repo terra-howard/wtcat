@@ -3,6 +3,7 @@ package cat
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
@@ -13,6 +14,16 @@ import (
 	"strings"
 	"testing"
 )
+
+// verifySignature fails closed: a key of a type it does not know never verifies.
+func TestVerifySignatureRefusesUnknownKeys(t *testing.T) {
+	digest := sha256.Sum256([]byte("payload"))
+	for _, key := range []crypto.PublicKey{nil, ed25519.PublicKey(make([]byte, ed25519.PublicKeySize)), "not a key"} {
+		if err := verifySignature(key, digest[:], make([]byte, 64)); err == nil {
+			t.Errorf("verifySignature(%T) = nil, want an error", key)
+		}
+	}
+}
 
 // Outside vectors, copied from the RFCs' text by script.
 const (

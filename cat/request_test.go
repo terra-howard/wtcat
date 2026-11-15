@@ -103,6 +103,19 @@ func TestCathJoinsFieldLinesWithACommaAndSpace(t *testing.T) {
 	}
 }
 
+// A header built in code can hold one field under names differing in case. Their lines are joined in the sorted
+// order of those names, so the result does not depend on how a map is walked.
+func TestCathJoinsFieldLinesInAStableOrder(t *testing.T) {
+	token := claimsToken(t, map[any]any{315: map[string]any{"Accept": map[int64]any{0: "a, b, c"}}})
+	req := get()
+	req.Header = http.Header{"accept": {"c"}, "Accept": {"a", "b"}}
+	for i := range 50 {
+		if _, err := validator().ValidateRequest(token, req); err != nil {
+			t.Fatalf("run %d: ValidateRequest: %v", i, err)
+		}
+	}
+}
+
 func TestCathRefusesNamesThatDifferOnlyInCase(t *testing.T) {
 	token := claimsToken(t, map[any]any{315: map[string]any{"Accept": map[int64]any{}, "accept": map[int64]any{}}})
 	_, err := validator().ValidateRequest(token, get())

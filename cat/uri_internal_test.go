@@ -157,7 +157,7 @@ func TestCharacterPredicatesMatchRFC3986(t *testing.T) {
 		subDelims  = "!$&'()*+,;="
 	)
 	in := func(set string, c byte) bool { return strings.IndexByte(set, c) >= 0 }
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		c := byte(i)
 		if got := isHex(c); got != in(hexdig, c) {
 			t.Errorf("isHex(%q) = %v", c, got)

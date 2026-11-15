@@ -17,6 +17,13 @@ import (
 	"time"
 )
 
+// ErrProof means the DPoP proof a cnf claim requires is missing or fails a check of decision 0020, or a token in
+// the DPoP authorization scheme is not bound by cnf.
+var ErrProof = fmt.Errorf("%w: no DPoP proof satisfies cnf", ErrUnacceptable)
+
+// DefaultDPoPWindow is the proof window when neither catdpop nor the Validator sets one.
+const DefaultDPoPWindow = 60 * time.Second
+
 // proof is a DPoP proof (RFC 9449) whose signature verified with the key in its own header (decision 0020).
 type proof struct {
 	jkt                []byte // the RFC 7638 thumbprint of the proof's key
@@ -81,8 +88,11 @@ func parseProof(compact string) (*proof, error) {
 		return nil, errors.New("the payload is not a JSON object")
 	}
 	p := &proof{jkt: jkt}
-	for name, dst := range map[string]*string{"jti": &p.jti, "htm": &p.htm, "htu": &p.htu} {
-		if *dst, err = jsonString(payload, name); err != nil {
+	for _, m := range []struct {
+		name string
+		dst  *string
+	}{{"jti", &p.jti}, {"htm", &p.htm}, {"htu", &p.htu}} {
+		if *m.dst, err = jsonString(payload, m.name); err != nil {
 			return nil, err
 		}
 	}
@@ -170,6 +180,8 @@ func publicKey(jwk map[string]json.RawMessage, alg string) (crypto.PublicKey, er
 	}
 }
 
+// verifySignature checks an ES256 signature in JWS's fixed-length r||s form, or a PS256 signature. Any other key
+// is refused.
 func verifySignature(key crypto.PublicKey, digest, sig []byte) error {
 	switch k := key.(type) {
 	case *ecdsa.PublicKey:
@@ -180,6 +192,8 @@ func verifySignature(key crypto.PublicKey, digest, sig []byte) error {
 		if rsa.VerifyPSS(k, crypto.SHA256, digest, sig, &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash}) != nil {
 			return errors.New("the PS256 signature does not verify")
 		}
+	default:
+		return fmt.Errorf("no signature check for a %T key", key)
 	}
 	return nil
 }
@@ -217,13 +231,6 @@ func thumbprint(jwk map[string]json.RawMessage) ([]byte, error) {
 	sum := sha256.Sum256(b.Bytes())
 	return sum[:], nil
 }
-
-// ErrProof means the DPoP proof a cnf claim requires is missing or fails a check of decision 0020, or a token in
-// the DPoP authorization scheme is not bound by cnf.
-var ErrProof = fmt.Errorf("%w: no DPoP proof satisfies cnf", ErrUnacceptable)
-
-// DefaultDPoPWindow is the proof window when neither catdpop nor the Validator sets one.
-const DefaultDPoPWindow = 60 * time.Second
 
 // checkConfirmation checks the jkt of a cnf claim against the DPoP proof of the request (RFC 9449 Section 4.3,
 // decision 0020).

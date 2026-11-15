@@ -50,7 +50,8 @@ func (v *Validator) ValidateRequest(token string, req *Request) (*Token, error) 
 	return v.validate(token, req)
 }
 
-// checkRequest checks the request claims phase 2 enforces so far.
+// checkRequest checks catm, catnip, catu and cath, and refuses a token with any request claim when there is no
+// request. cnf, which needs one too, is checked by checkConfirmation.
 func checkRequest(c *Claims, req *Request) error {
 	if c.Methods == nil && c.headers == nil && c.uri == nil && c.network == nil && c.jkt == nil {
 		return nil
@@ -85,15 +86,19 @@ func checkRequest(c *Claims, req *Request) error {
 }
 
 // headerValue returns a header's field value, its field lines joined with ", " (RFC 9110 Section 5.2), finding the
-// name case-insensitively.
+// name case-insensitively. A header built in code can hold one field under names that differ in case; their lines
+// are taken in the sorted order of the names, so that the result never depends on how the map is walked.
 func headerValue(h http.Header, name string) (string, bool) {
-	var lines []string
-	present := false
-	for k, vs := range h {
+	var names []string
+	for k := range h {
 		if strings.EqualFold(k, name) {
-			present = true
-			lines = append(lines, vs...)
+			names = append(names, k)
 		}
 	}
-	return strings.Join(lines, ", "), present
+	slices.Sort(names)
+	var lines []string
+	for _, k := range names {
+		lines = append(lines, h[k]...)
+	}
+	return strings.Join(lines, ", "), len(names) > 0
 }

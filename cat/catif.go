@@ -31,9 +31,6 @@ type IfResponse struct {
 	Header http.Header
 }
 
-// claimCatif is the catif claim key (section 4.9.1).
-const claimCatif = 322
-
 // keyedError marks an error with the claim that caused it, where the error alone does not say.
 type keyedError struct {
 	key int64
@@ -178,7 +175,7 @@ func (v *Validator) ifAction(raw cbor.RawMessage, claim int64, req *Request, now
 		if err != nil || !isFieldName(*name) {
 			return nil
 		}
-		value, ok := v.headerValue(h[1], kid, claim, req, now)
+		value, ok := v.actionValue(h[1], kid, claim, req, now)
 		if !ok || strings.IndexFunc(value, func(c rune) bool { return c < 0x20 && c != '\t' || c == 0x7f }) >= 0 {
 			return nil // a value that could break the response's framing
 		}
@@ -197,8 +194,8 @@ func isFieldName(s string) bool {
 	return s != ""
 }
 
-// headerValue builds one header value: a string as it is, or an array whose members are concatenated.
-func (v *Validator) headerValue(raw cbor.RawMessage, kid string, claim int64, req *Request, now time.Time) (string, bool) {
+// actionValue builds one header value of an action: a string as it is, or an array whose members are concatenated.
+func (v *Validator) actionValue(raw cbor.RawMessage, kid string, claim int64, req *Request, now time.Time) (string, bool) {
 	if majorType(raw) == majorText {
 		s, err := textClaim(raw, claimCatif)
 		return deref(s), err == nil
@@ -271,9 +268,9 @@ func (v *Validator) mint(item cbor.RawMessage, kid string, claim int64, req *Req
 	if decMode.Unmarshal(item, &claims) != nil {
 		return ""
 	}
-	null := func(r cbor.RawMessage) bool { return len(r) == 1 && r[0] == 0xf6 }
+	null := func(r cbor.RawMessage) bool { return len(r) == 1 && r[0] == cborNull }
 	set := func(key uint64, value any) bool {
-		b, err := renewEncoder.Marshal(value)
+		b, err := issueEncoder.Marshal(value)
 		claims[key] = b
 		return err == nil
 	}
@@ -289,7 +286,7 @@ func (v *Validator) mint(item cbor.RawMessage, kid string, claim int64, req *Req
 			return ""
 		}
 	}
-	payload, err := renewEncoder.Marshal(claims)
+	payload, err := issueEncoder.Marshal(claims)
 	if err != nil {
 		return ""
 	}
@@ -303,9 +300,6 @@ func (v *Validator) mint(item cbor.RawMessage, kid string, claim int64, req *Req
 	}
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
-
-// claimCatifdata is the catifdata claim key (section 4.7.3).
-const claimCatifdata = 320
 
 // catifdata processes a catifdata value inside a minted claim set: a string stays as it is; an array keeps its
 // strings, substitutes its integers and turns its maps into empty strings, without concatenating.

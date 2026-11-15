@@ -28,18 +28,18 @@ type Claims struct {
 	Version   uint64       // catv (310); 1 when absent (section 4.6.8)
 	Methods   []string     // catm (313): the methods the token may be used with
 
-	headers []headerMatch    // cath (315); nil when absent
-	uri     []componentMatch // catu (312); nil when absent
-	network []netMatch       // catnip (311); nil when absent
-	jkt     []byte           // cnf (8) jkt (323); nil when cnf is absent
-	// dpopWindow is the window setting of catdpop (321), in seconds; nil when absent.
-	dpopWindow *uint64
-	replay     *uint64         // catreplay (308); nil when absent
-	countries  []string        // catgeoiso3166 (316); nil when absent
-	alpns      [][]byte        // catalpn (314); nil when absent
-	tpk        []byte          // cattpk (319); nil when absent
-	catr       cbor.RawMessage // catr (323) as received, parsed only when renewal is attempted (decision 0022)
-	catif      cbor.RawMessage // catif (322) as received, parsed only for a response to a refusal
+	// The claims below are enforced but not exposed; each is nil when absent.
+	jkt        []byte           // cnf (8): its jkt, the thumbprint of the key a DPoP proof must use
+	replay     *uint64          // catreplay (308)
+	network    []netMatch       // catnip (311)
+	uri        []componentMatch // catu (312)
+	alpns      [][]byte         // catalpn (314)
+	headers    []headerMatch    // cath (315)
+	countries  []string         // catgeoiso3166 (316)
+	tpk        []byte           // cattpk (319)
+	dpopWindow *uint64          // catdpop (321): its window setting, in seconds
+	catif      cbor.RawMessage  // catif (322) as received, parsed only for a response to a refusal
+	catr       cbor.RawMessage  // catr (323) as received, parsed only when renewal is attempted (decision 0022)
 }
 
 // componentMatch is one member of a catu claim: a URI component (0 to 8) and its match.
@@ -54,24 +54,36 @@ type headerMatch struct {
 	match *match
 }
 
-// Claim keys this package knows (section 4.5 and RFC 8392).
+// Claim keys this package knows: RFC 8392's, then CTA-5007-B's (section 4.5).
 const (
-	claimIss       = 1
-	claimSub       = 2
-	claimAud       = 3
-	claimExp       = 4
-	claimNbf       = 5
-	claimIat       = 6
-	claimCti       = 7
-	claimCatv      = 310
-	claimCnf       = 8
-	claimCatreplay = 308
-	claimCatnip    = 311
-	claimCatdpop   = 321
-	claimCatu      = 312
-	claimCatm      = 313
-	claimCath      = 315
+	claimIss           = 1
+	claimSub           = 2
+	claimAud           = 3
+	claimExp           = 4
+	claimNbf           = 5
+	claimIat           = 6
+	claimCti           = 7
+	claimCnf           = 8
+	claimCatreplay     = 308
+	claimCatv          = 310
+	claimCatnip        = 311
+	claimCatu          = 312
+	claimCatm          = 313
+	claimCatalpn       = 314
+	claimCath          = 315
+	claimCatgeoiso3166 = 316
+	claimCattpk        = 319
+	claimCatifdata     = 320
+	claimCatdpop       = 321
+	claimCatif         = 322
+	claimCatr          = 323
 )
+
+// cnfJKT is the jkt confirmation method's key inside a cnf claim (section 4.8.1).
+const cnfJKT = 323
+
+// cborNull is the encoding of CBOR's null.
+const cborNull = 0xf6
 
 // decMode decodes claims strictly: duplicate map keys, invalid UTF-8 and indefinite lengths are refused.
 var decMode = func() cbor.DecMode {
@@ -147,9 +159,11 @@ func decodeClaims(payload []byte) (*Claims, error) {
 // decodeClaim decodes one claim value into c if the key is one this package knows.
 func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	switch key {
-	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCatv, claimCatm, claimCath, claimCatu, claimCatnip, claimCnf, claimCatdpop, claimCatreplay, claimCatgeoiso3166, claimCatalpn, claimCattpk, claimCatr, claimCatif:
+	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCnf, claimCatreplay, claimCatv,
+		claimCatnip, claimCatu, claimCatm, claimCatalpn, claimCath, claimCatgeoiso3166, claimCattpk, claimCatdpop,
+		claimCatif, claimCatr:
 	default:
-		return nil
+		return nil // a claim this package does not know, or catifdata, which only means something in a minted token
 	}
 	if len(value) == 0 {
 		return malformed("claim %d is empty", key)
@@ -218,6 +232,7 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	return err
 }
 
+// isKind reports whether err already carries one of the kinds of invalid token.
 func isKind(err error) bool {
 	return errors.Is(err, cwt.ErrMalformed) || errors.Is(err, cwt.ErrUnsupported)
 }
@@ -249,9 +264,6 @@ func decodeAudience(value cbor.RawMessage) ([]string, error) {
 		}
 		out := make([]string, 0, len(items))
 		for _, item := range items {
-			if len(item) == 0 || majorType(item) != majorText {
-				return nil, malformed("claim 3 (aud) holds something other than an untagged text string")
-			}
 			s, err := textClaim(item, claimAud)
 			if err != nil {
 				return nil, err
@@ -359,7 +371,7 @@ func decodeCatu(value cbor.RawMessage) ([]componentMatch, error) {
 		var component int64
 		switch kk := k.(type) {
 		case uint64:
-			if kk > 8 {
+			if kk > componentExtension {
 				return nil, unsupported("claim 312 (catu) has URI component %d", kk)
 			}
 			component = int64(kk)
@@ -386,7 +398,7 @@ func decodeCnf(value cbor.RawMessage) ([]byte, error) {
 	}
 	var jkt []byte
 	for k, v := range m {
-		if key, ok := k.(uint64); !ok || key != 323 {
+		if key, ok := k.(uint64); !ok || key != cnfJKT {
 			return nil, unsupported("claim 8 (cnf) has confirmation method %v, which this version cannot check", k)
 		}
 		if len(v) == 0 || majorType(v) != majorBytes {

@@ -16,9 +16,6 @@ type Location struct {
 // ErrLocation means the client is not in a place the token's catgeoiso3166 claim lists, or could not be located.
 var ErrLocation = fmt.Errorf("%w: the client is not in a place catgeoiso3166 lists", ErrUnacceptable)
 
-// claimCatgeoiso3166 is the catgeoiso3166 claim key (section 4.6.14).
-const claimCatgeoiso3166 = 316
-
 // decodeCountries decodes catgeoiso3166: at least one ISO 3166 country code, each optionally followed by a dash and
 // a region code. Only the syntax is checked; this package holds no copy of ISO's lists (decision 0021).
 func decodeCountries(value cbor.RawMessage) ([]string, error) {

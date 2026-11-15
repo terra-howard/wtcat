@@ -44,7 +44,7 @@ func TestCatreplayRefusesReuse(t *testing.T) {
 func TestCatreplayZeroNeverRefusesAndNeverAsks(t *testing.T) {
 	m := &memory{}
 	token := claimsToken(t, map[any]any{7: []byte{1}, 308: 0})
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if _, err := replayValidator(m).Validate(token); err != nil {
 			t.Fatalf("use %d: %v", i+1, err)
 		}
@@ -57,7 +57,7 @@ func TestCatreplayZeroNeverRefusesAndNeverAsks(t *testing.T) {
 func TestCatreplayNeedsACtiAndAReplayFunction(t *testing.T) {
 	m := &memory{}
 	noCti := claimsToken(t, map[any]any{308: 1})
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if _, err := replayValidator(m).Validate(noCti); err != nil {
 			t.Fatalf("no cti, use %d: %v", i+1, err)
 		}
@@ -66,7 +66,7 @@ func TestCatreplayNeedsACtiAndAReplayFunction(t *testing.T) {
 		t.Errorf("Replay was called without a cti")
 	}
 	withCti := claimsToken(t, map[any]any{7: []byte{1}, 308: 1})
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if _, err := validator().Validate(withCti); err != nil {
 			t.Fatalf("no Replay function, use %d: %v", i+1, err)
 		}

@@ -8,7 +8,7 @@ import (
 // isFieldName, checked for every byte against RFC 9110's tchar set written out in full.
 func TestIsFieldName(t *testing.T) {
 	const tchar = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'*+-.^_`|~"
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		c := byte(i)
 		if got, want := isFieldName(string([]byte{c})), strings.IndexByte(tchar, c) >= 0; got != want {
 			t.Errorf("isFieldName(%q) = %v, want %v", c, got, want)
@@ -22,7 +22,7 @@ func TestIsFieldName(t *testing.T) {
 // mapEntries must read the longer head forms too: 24 or more entries take an extra byte.
 func TestMapEntriesWithManyEntries(t *testing.T) {
 	m := map[int64]any{}
-	for i := int64(0); i < 30; i++ {
+	for i := range int64(30) {
 		m[i] = i
 	}
 	entries, ok := mapEntries(enc(t, m))

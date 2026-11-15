@@ -13,7 +13,8 @@ import (
 	"github.com/terra-howard/wtcat/cwt"
 )
 
-// Issuance lets a Validator issue tokens: renewals under catr, and later tokens minted for catif (decision 0022).
+// Issuance lets a Validator issue tokens: renewals under catr, and tokens minted into catif responses (decision
+// 0022).
 type Issuance struct {
 	Issuer string // written into iss; empty means renewed tokens carry no iss
 	// Key returns the signing key for a kid; "" asks for the default renewal key.
@@ -45,9 +46,6 @@ type Renewal struct {
 // ErrNoRenewal means the token's catr cannot be followed: it is malformed, carries parameters inappropriate to its
 // type, or asks for something this recipient cannot do. The token itself is unaffected (decision 0022).
 var ErrNoRenewal = errors.New("cat: token not renewed")
-
-// claimCatr is the catr claim key (section 4.9.2).
-const claimCatr = 323
 
 // catr holds a parsed catr claim.
 type catr struct {
@@ -118,28 +116,35 @@ func parseCatr(value cbor.RawMessage) (*catr, error) {
 		}
 		r.deadline = &d
 	}
-	var err error
-	for key, dst := range map[int64]*string{3: &r.cookieName, 4: &r.headerName} {
-		if raw, present := params[key]; present {
-			s, e := textClaim(raw, claimCatr)
-			if e != nil {
-				return nil, noRenewal("catr parameter %d is not a text string", key)
+	names := []struct {
+		key int64
+		dst *string
+	}{{3, &r.cookieName}, {4, &r.headerName}}
+	for _, n := range names {
+		if raw, present := params[n.key]; present {
+			s, err := textClaim(raw, claimCatr)
+			if err != nil {
+				return nil, noRenewal("catr parameter %d is not a text string", n.key)
 			}
-			*dst = *s
+			*n.dst = *s
 		}
 	}
-	for key, dst := range map[int64]*[]string{5: &r.cookieParams, 6: &r.headerParams} {
-		if raw, present := params[key]; present {
+	lists := []struct {
+		key int64
+		dst *[]string
+	}{{5, &r.cookieParams}, {6, &r.headerParams}}
+	for _, l := range lists {
+		if raw, present := params[l.key]; present {
 			var items []cbor.RawMessage
 			if majorType(raw) != majorArray || decMode.Unmarshal(raw, &items) != nil {
-				return nil, noRenewal("catr parameter %d is not an array", key)
+				return nil, noRenewal("catr parameter %d is not an array", l.key)
 			}
 			for _, item := range items {
-				s, e := textClaim(item, claimCatr)
-				if e != nil {
-					return nil, noRenewal("catr parameter %d holds something other than text strings", key)
+				s, err := textClaim(item, claimCatr)
+				if err != nil {
+					return nil, noRenewal("catr parameter %d holds something other than text strings", l.key)
 				}
-				*dst = append(*dst, *s)
+				*l.dst = append(*l.dst, *s)
 			}
 		}
 	}
@@ -152,12 +157,13 @@ func parseCatr(value cbor.RawMessage) (*catr, error) {
 	} else if r.typ == 0 || r.typ == 3 {
 		r.status = 307
 	}
-	return r, err
+	return r, nil
 }
 
-// renewEncoder writes the renewed claim set deterministically: shortest floats, and claims kept as received.
-var renewEncoder = func() cbor.EncMode {
-	em, err := cbor.EncOptions{ShortestFloat: cbor.ShortestFloat16}.EncMode()
+// issueEncoder writes the claim sets of renewed and minted tokens deterministically: shortest floats, keys in
+// sorted order (decision 0023), and the claims kept from the received token exactly as they were.
+var issueEncoder = func() cbor.EncMode {
+	em, err := cbor.EncOptions{ShortestFloat: cbor.ShortestFloat16, Sort: cbor.SortCoreDeterministic}.EncMode()
 	if err != nil {
 		panic(err)
 	}
@@ -170,6 +176,9 @@ var renewEncoder = func() cbor.EncMode {
 func (v *Validator) Renew(t *Token, now time.Time) (*Renewal, error) {
 	if v.Issuance == nil || t == nil || t.Claims.catr == nil {
 		return nil, nil
+	}
+	if v.Issuance.Key == nil {
+		return nil, noRenewal("Issuance has no key function")
 	}
 	r, err := parseCatr(t.Claims.catr)
 	if err != nil || r == nil {
@@ -190,7 +199,7 @@ func (v *Validator) Renew(t *Token, now time.Time) (*Renewal, error) {
 		return nil, noRenewal("the received claim set: %v", err)
 	}
 	set := func(key uint64, value any) error {
-		b, err := renewEncoder.Marshal(value)
+		b, err := issueEncoder.Marshal(value)
 		claims[key] = b
 		return err
 	}
@@ -219,12 +228,9 @@ func (v *Validator) Renew(t *Token, now time.Time) (*Renewal, error) {
 			return nil, err
 		}
 	}
-	payload, err := renewEncoder.Marshal(claims)
+	payload, err := issueEncoder.Marshal(claims)
 	if err != nil {
 		return nil, err
-	}
-	if v.Issuance.Key == nil {
-		return nil, noRenewal("Issuance has no key function")
 	}
 	key, err := v.Issuance.Key("")
 	if err != nil {

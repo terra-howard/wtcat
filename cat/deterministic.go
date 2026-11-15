@@ -38,7 +38,7 @@ func checkItem(data []byte, off, depth int) (int, error) {
 	if off >= len(data) {
 		return 0, notDeterministic("truncated at byte %d", off)
 	}
-	major, info := data[off]>>5, data[off]&0x1f
+	major, info := majorType(data[off:]), data[off]&0x1f
 	pos := off + 1
 	var arg uint64
 	switch {
@@ -51,7 +51,7 @@ func checkItem(data []byte, off, depth int) (int, error) {
 		}
 		arg = readUint(data[pos : pos+n])
 		pos += n
-		if major == 7 {
+		if major == majorSimple {
 			return checkSimpleOrFloat(info, arg, pos, off)
 		}
 		if arg < minimumFor(n) {
@@ -65,20 +65,20 @@ func checkItem(data []byte, off, depth int) (int, error) {
 
 	remaining := uint64(len(data) - pos)
 	switch major {
-	case 0, 1: // integers
+	case majorUnsigned, majorNegative:
 		return pos, nil
-	case 2, 3: // byte and text strings
+	case majorBytes, majorText:
 		if arg > remaining {
 			return 0, notDeterministic("string at byte %d runs past the end", off)
 		}
 		end := pos + int(arg)
-		if major == 3 && !utf8.Valid(data[pos:end]) {
+		if major == majorText && !utf8.Valid(data[pos:end]) {
 			return 0, notDeterministic("invalid UTF-8 in the text string at byte %d", off)
 		}
 		return end, nil
-	case 4, 5: // arrays and maps
+	case majorArray, majorMap:
 		items := arg
-		if major == 5 {
+		if major == majorMap {
 			if arg > remaining/2 {
 				return 0, notDeterministic("map at byte %d runs past the end", off)
 			}
@@ -97,7 +97,7 @@ func checkItem(data []byte, off, depth int) (int, error) {
 			}
 		}
 		return pos, nil
-	case 6: // tags
+	case majorTag:
 		if depth >= maxDepth {
 			return 0, notDeterministic("nested more than %d deep at byte %d", maxDepth, off)
 		}
@@ -111,7 +111,7 @@ func checkItem(data []byte, off, depth int) (int, error) {
 			}
 		}
 		return end, nil
-	default: // major 7 with info below 24: simple values 0 to 23, all well-formed
+	default: // majorSimple with info below 24: simple values 0 to 23, all well-formed
 		return pos, nil
 	}
 }
@@ -146,7 +146,7 @@ func minimumFor(n int) uint64 {
 // checkBignum applies RFC 8949 Section 3.4.3's preferred serialization: a bignum's byte string has no leading
 // zero, and a value that fits in 64 bits is an integer of major type 0 or 1 instead.
 func checkBignum(content []byte, off int) error {
-	if len(content) == 0 || content[0]>>5 != 2 {
+	if len(content) == 0 || majorType(content) != majorBytes {
 		return notDeterministic("bignum tag at byte %d does not enclose a byte string", off)
 	}
 	// The content is a well-formed byte string; skip its head to reach the value's bytes.

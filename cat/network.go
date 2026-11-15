@@ -88,11 +88,11 @@ func decodePrefix(item cbor.RawMessage) (netip.Prefix, error) {
 		return netip.Prefix{}, malformed("claim 311 (catnip): prefix bytes are not a byte string")
 	}
 	var length uint64
-	var bytes []byte
+	var prefix []byte
 	if err := decMode.Unmarshal(parts[0], &length); err != nil {
 		return netip.Prefix{}, malformed("claim 311 (catnip): %v", err)
 	}
-	if err := decMode.Unmarshal(parts[1], &bytes); err != nil {
+	if err := decMode.Unmarshal(parts[1], &prefix); err != nil {
 		return netip.Prefix{}, malformed("claim 311 (catnip): %v", err)
 	}
 	switch {
@@ -100,16 +100,16 @@ func decodePrefix(item cbor.RawMessage) (netip.Prefix, error) {
 		return netip.Prefix{}, malformed("claim 311 (catnip): prefix length %d is beyond the address size", length)
 	case length > uint64(limit):
 		return netip.Prefix{}, malformed("claim 311 (catnip): a /%d prefix must be encrypted (section 4.6.9)", length)
-	case len(bytes) > int(length+7)/8:
+	case len(prefix) > int(length+7)/8:
 		return netip.Prefix{}, malformed("claim 311 (catnip): more prefix bytes than a /%d prefix needs", length)
-	case len(bytes) > 0 && bytes[len(bytes)-1] == 0:
+	case len(prefix) > 0 && prefix[len(prefix)-1] == 0:
 		return netip.Prefix{}, malformed("claim 311 (catnip): a trailing zero byte, which RFC 9164 omits")
 	}
-	if rem := length % 8; rem != 0 && len(bytes) == int(length+7)/8 && bytes[len(bytes)-1]&(0xff>>rem) != 0 {
+	if rem := length % 8; rem != 0 && len(prefix) == int(length+7)/8 && prefix[len(prefix)-1]&(0xff>>rem) != 0 {
 		return netip.Prefix{}, malformed("claim 311 (catnip): a bit set beyond the /%d prefix", length)
 	}
 	full := make([]byte, size)
-	copy(full, bytes)
+	copy(full, prefix)
 	var addr netip.Addr
 	if size == 4 {
 		addr = netip.AddrFrom4([4]byte(full))

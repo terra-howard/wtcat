@@ -89,6 +89,42 @@ func TestRenewCookie(t *testing.T) {
 	}
 }
 
+// The same token renewed at the same moment gives the same bytes: the claim set is written with its keys in sorted
+// order (decision 0023), not in whatever order a map is walked.
+func TestRenewIsReproducible(t *testing.T) {
+	text := claimsToken(t, map[any]any{
+		1: "issuer", 2: "subject", 3: "cdn.example", 4: testNow.Unix() + 10, 6: testNow.Unix() - 100, 999: "kept",
+		-5: 1, 400: []byte{1}, 323: map[int64]any{0: 2, 1: 60},
+	})
+	first, claims := renewed(t, renewer(), text)
+	for range 20 {
+		if again, _ := renewed(t, renewer(), text); again.Token != first.Token {
+			t.Fatalf("renewing twice gave %s and then %s", first.Token, again.Token)
+		}
+	}
+	sorted, err := cbor.EncOptions{Sort: cbor.SortCoreDeterministic}.EncMode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := base64.RawURLEncoding.DecodeString(first.Token)
+	msg, err := cwt.VerifyMessage(raw, func([]byte) (cwt.Key, error) {
+		return cwt.Key{Algorithm: cwt.HMAC256x256, Material: renewKey}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var all map[any]cbor.RawMessage
+	if err := cbor.Unmarshal(msg.Payload, &all); err != nil {
+		t.Fatal(err)
+	}
+	if want, _ := sorted.Marshal(all); !bytes.Equal(msg.Payload, want) {
+		t.Errorf("claim set %x is not in sorted key order, %x", msg.Payload, want)
+	}
+	if len(claims) == 0 {
+		t.Error("no claims")
+	}
+}
+
 func TestRenewKeepsAnAbsentCtiAbsent(t *testing.T) {
 	_, claims := renewed(t, renewer(), claimsToken(t, map[any]any{323: map[int64]any{0: 2, 1: 30, 4: "X-Token"}}))
 	if _, ok := claims[7]; ok {
@@ -159,6 +195,19 @@ func TestRenewDoesNothing(t *testing.T) {
 }
 
 // A catr the recipient cannot follow means no renewal, never an invalid token (decision 0022).
+// An Issuance without a key function cannot renew anything, and says so rather than failing later.
+func TestRenewNeedsAKeyFunction(t *testing.T) {
+	v := renewer()
+	v.Issuance.Key = nil
+	tok, err := v.Validate(claimsToken(t, map[any]any{323: map[int64]any{0: 1, 1: 60}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, err := v.Renew(tok, testNow); r != nil || !errors.Is(err, cat.ErrNoRenewal) {
+		t.Errorf("Renew = %v, %v; want cat.ErrNoRenewal", r, err)
+	}
+}
+
 func TestRenewRefuses(t *testing.T) {
 	for name, catr := range map[string]any{
 		"not a map":                    []any{},

@@ -3,6 +3,7 @@ package cat
 import (
 	"bytes"
 	"fmt"
+	"slices"
 
 	"github.com/fxamacker/cbor/v2"
 )
@@ -17,12 +18,6 @@ type Connection struct {
 
 // ErrConnection means the request's connection does not satisfy the token's catalpn or cattpk claim.
 var ErrConnection = fmt.Errorf("%w: the connection does not satisfy catalpn or cattpk", ErrUnacceptable)
-
-// Claim keys for the connection claims (sections 4.6.12 and 4.6.18).
-const (
-	claimCatalpn = 314
-	claimCattpk  = 319
-)
 
 // decodeALPNs decodes catalpn: an array of at least one untagged byte string.
 func decodeALPNs(value cbor.RawMessage) ([][]byte, error) {
@@ -76,19 +71,13 @@ func checkConnection(c *Claims, req *Request) error {
 		return &keyedError{key, fmt.Errorf("%w: the request was not made over TLS", ErrConnection)}
 	}
 	if c.alpns != nil {
-		listed := false
-		for _, a := range c.alpns {
-			listed = listed || conn.ALPN != "" && bytes.Equal(a, []byte(conn.ALPN))
-		}
-		if !listed {
+		if conn.ALPN == "" || !slices.ContainsFunc(c.alpns, func(a []byte) bool { return string(a) == conn.ALPN }) {
 			return &keyedError{claimCatalpn, fmt.Errorf("%w: ALPN %q is not listed", ErrConnection, conn.ALPN)}
 		}
 	}
 	if c.tpk != nil {
-		for _, k := range conn.ClientKeys {
-			if bytes.Equal(k, c.tpk) {
-				return nil
-			}
+		if slices.ContainsFunc(conn.ClientKeys, func(k []byte) bool { return bytes.Equal(k, c.tpk) }) {
+			return nil
 		}
 		return &keyedError{claimCattpk, fmt.Errorf("%w: no client certificate has the cattpk key", ErrConnection)}
 	}
