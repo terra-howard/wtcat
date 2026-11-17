@@ -23,6 +23,8 @@
 //	exp (4)              the current time must be before it, with no leeway
 //	nbf (5)              the current time must not be before it, with no leeway
 //	cnf (8)              with jkt: the request's DPoP proof must be made with that key and match the request
+//	geohash (282)        with Request.Location.Coordinates set: the client must be in a listed region; only
+//	                     geohashes of 4 characters or fewer can be accepted unencrypted (decision 0027)
 //	catreplay (308)      with Validator.Replay set: 1 or 2 refuses a cti seen before; 0 never refuses
 //	catv (310)           must be 1
 //	catnip (311)         the client's address must lie in a listed prefix, or its ASN be listed
@@ -39,8 +41,8 @@
 // unsupported too. sub (2), iat (6) and cti (7) are decoded and type-checked, and are informational here.
 //
 // Every other claim is ignored, as section 4.5 requires of claims a recipient does not support: catpor,
-// catgeocoord, geohash, catgeoalt and catifdata, and catreplay, catgeoiso3166, catalpn and cattpk when the caller
-// does not supply what they need (decision 0021).
+// catgeocoord, catgeoalt and catifdata, and catreplay, catgeoiso3166, geohash, catalpn and cattpk when the caller
+// does not supply what they need (decisions 0021 and 0027).
 //
 // # Issuing tokens
 //
