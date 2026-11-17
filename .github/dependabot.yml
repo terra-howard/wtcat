@@ -1,0 +1,14 @@
+# Decision 0025: Dependabot proposes updates as pull requests, which pass the same gate and code-owner review as any
+# other change. GitHub Actions stay pinned to full commit SHAs; Dependabot updates the SHA and its version comment.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
