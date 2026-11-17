@@ -1,4 +1,4 @@
-# Mutation testing, decisions 0013 and 0024. Gremlins plants faults one at a time and fails the job if a package's
+# Mutation testing, decisions 0013, 0024 and 0028. Gremlins plants faults one at a time and fails the job if a package's
 # test efficacy or mutant coverage falls below its threshold. It takes minutes per package, so it runs on pushes to
 # main, weekly and by hand, while the fast gate in ci.yml runs on every push. Actions are pinned as in ci.yml.
 name: mutation
@@ -16,7 +16,7 @@ permissions:
 jobs:
   gremlins:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -31,4 +31,15 @@ jobs:
       - name: Gremlins on ./${{ matrix.package }}
         run: >-
           go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash
-          --config .github/gremlins/${{ matrix.package }}.yaml ./${{ matrix.package }}
+          --config .github/gremlins/${{ matrix.package }}.yaml -o gremlins.json ./${{ matrix.package }}
+      # Decision 0028: a misconfigured run can count every mutant as killed and still pass both thresholds. Every
+      # package has mutants classified as equivalent, which no test can kill, so a run in which none lived is vacuous.
+      - name: Refuse a vacuous run
+        run: |
+          lived=$(jq .mutants_lived gremlins.json)
+          killed=$(jq .mutants_killed gremlins.json)
+          echo "killed $killed, lived $lived"
+          if [ "$lived" -lt 1 ]; then
+            echo "::error::No mutant lived, but ./${{ matrix.package }} has known equivalent mutants, so this run is vacuous (decision 0028)."
+            exit 1
+          fi
