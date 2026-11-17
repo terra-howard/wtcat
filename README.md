@@ -30,10 +30,13 @@ what else is left out.
 
 ## Status
 
-Not yet published. Everything decided so far is built. Decisions 0006 onward were made under the owner's
-delegation and await her review. The tests include RFC 8392's examples as protected tests, the COSE working group's
-vectors and, run locally from a copy of the specification, CTA-5007-B's own HMAC and PS256 examples. The parsers
-are fuzzed, and mutation testing checks the tests.
+Published as `v0.1.0`, before 1.0, so the API may still change between minor versions. Install with
+`go get github.com/terra-howard/wtcat@latest`; package documentation is on
+[pkg.go.dev](https://pkg.go.dev/github.com/terra-howard/wtcat). Decisions 0006 onward were made under the owner's
+delegation and are marked unreviewed until she reviews them. The tests include RFC 8392's examples as protected
+tests, the COSE working group's vectors and, run locally from a copy of the specification, CTA-5007-B's own HMAC and
+PS256 examples. The parsers are fuzzed, and mutation testing checks the tests. Security reports go through
+[SECURITY.md](SECURITY.md).
 
 ## The specification
 
