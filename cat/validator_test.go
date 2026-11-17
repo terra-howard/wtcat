@@ -285,19 +285,19 @@ func TestValidateCOSEMac(t *testing.T) {
 	payload := enc(t, map[any]any{1: "issuer", 4: 1700000060})
 	h := hmac.New(sha256.New, hmacSecret)
 	h.Write(enc(t, []any{"MAC", protected, []byte{}, payload}))
-	recipients := []any{
-		[]any{[]byte{}, map[int64]any{1: -6, 4: []byte("unknown")}, []byte{}},
-		[]any{[]byte{}, map[int64]any{1: -6, 4: []byte("k1")}, []byte{}},
-	}
-	token := base64.RawURLEncoding.EncodeToString(enc(t, cbor.Tag{Number: 97, Content: []any{protected, map[int64]any{}, payload, h.Sum(nil), recipients}}))
-	var asked [][]byte
-	v := validator()
-	v.Keys = keys(&asked)
-	tok, err := v.Validate(token)
-	if err != nil {
-		t.Fatalf("Validate: %v", err)
-	}
-	if string(tok.KID) != "k1" {
-		t.Fatalf("KID = %q", tok.KID)
+	unknown := []any{[]byte{}, map[int64]any{1: -6, 4: []byte("unknown")}, []byte{}}
+	known := []any{[]byte{}, map[int64]any{1: -6, 4: []byte("k1")}, []byte{}}
+	// Both orders: the issuer must be the one bound to the key that verified, whatever was looked up after it.
+	for name, recipients := range map[string][]any{"unknown first": {unknown, known}, "unknown last": {known, unknown}} {
+		t.Run(name, func(t *testing.T) {
+			token := base64.RawURLEncoding.EncodeToString(enc(t, cbor.Tag{Number: 97, Content: []any{protected, map[int64]any{}, payload, h.Sum(nil), recipients}}))
+			tok, err := validator().Validate(token)
+			if err != nil {
+				t.Fatalf("Validate: %v", err)
+			}
+			if string(tok.KID) != "k1" {
+				t.Fatalf("KID = %q", tok.KID)
+			}
+		})
 	}
 }
