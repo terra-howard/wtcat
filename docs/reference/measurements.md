@@ -184,4 +184,4 @@ Same command as task 11, on `./cat` and then `./cwt`.
 - the simple-value guard in dates, where the decoder's own error gives the same kind.
 
 **The 28 not covered** are `switch` case expressions, the coverage artifact task 11 found.
-
+| 64. COSE_Sign and COSE_Mac with direct recipients in `cwt.VerifyMessage`, decision 0029: parsing, the skip, must-verify and at-least-one policy, and tests against the COSE working group's `sign-tests`, `mac-tests`, `hmac-examples/HMac-05` and RFC 8152 C.1.1 and C.1.2 from the pinned commit (prediction committed before any code) | 2 | 60 min | the computed Sig_structure and MAC_structure match the vectors' intermediates byte for byte on the first compiled run, about 75%; every vector the decision says should pass does, and every one it says should fail does, on the first compiled run, about 50%; the existing suite and the census stay green, about 90% | | | |
