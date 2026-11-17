@@ -185,3 +185,12 @@ Same command as task 11, on `./cat` and then `./cwt`.
 
 **The 28 not covered** are `switch` case expressions, the coverage artifact task 11 found.
 
+
+## 2026-11-17: after publication, on the Contabo box
+
+Run on the owner's Contabo VPS (6 vCPUs reported as AMD EPYC, Ubuntu 24.04, Go 1.26.8), under her delegation after
+`v0.1.0`. Tasks 57 and 58 (README status and Dependabot, then the changelog) measured nothing.
+
+| Task | Predicted rounds | Predicted time | Predicted outcome | Actual rounds | Actual time | Actual outcome |
+|---|---|---|---|---|---|---|
+| 59. Benchmarks for the hot paths: `cwt.VerifyMac0`, `cwt.VerifySign1` (ES256 and PS256 with a 2048-bit key), `cat.Validator.Validate` (HMAC and ES256), and `cathttp` middleware with an HMAC token in the token field, each with `-benchmem` (prediction committed before any benchmark code) | 1 | 25 min | `VerifyMac0` 1.5 to 6 µs, about 75%; ES256 verify 40 to 120 µs, about 70%; PS256 verify 20 to 80 µs, about 70%; PS256 faster than ES256, about 60%; `Validate` with HMAC 4 to 16 µs and under 100 allocations, about 65%; `Validate` with ES256 within 25% of the ES256 verify, about 70%; middleware with HMAC 8 to 30 µs, about 60% | | | |
