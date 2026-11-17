@@ -216,7 +216,7 @@ func checkRecipient(p *party, protected, unprotected map[int64]cbor.RawMessage) 
 		return malformed("a recipient has no alg")
 	}
 	var id int64
-	if majorType(rawAlg) != majorUnsigned && majorType(rawAlg) != majorNegative || decMode.Unmarshal(rawAlg, &id) != nil {
+	if decMode.Unmarshal(rawAlg, &id) != nil {
 		return unsupported("a recipient alg that is not an integer")
 	}
 	if id != algDirect {
