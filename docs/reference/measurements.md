@@ -184,4 +184,4 @@ Same command as task 11, on `./cat` and then `./cwt`.
 - the simple-value guard in dates, where the decoder's own error gives the same kind.
 
 **The 28 not covered** are `switch` case expressions, the coverage artifact task 11 found.
-
+| 60. Why Gremlins times out on `cwt` (149 of 201 in one task-56 run, cause never established). Hypothesis: `cwt`'s tests generate seven RSA keys (five 2048-bit, two 1024-bit), RSA key generation has a long-tailed running time, and Gremlins sets each mutant's timeout from one baseline run, so a slow draw times out. Method: time `go test -count=1 ./cwt` 20 times, run Gremlins with the CI config 3 times, replace the generated RSA keys with fixed test keys in `testdata`, and repeat both (prediction committed before any run) | 1 | 50 min | before the fix, the slowest of the 20 test runs takes at least 3 times the fastest, about 60%; at least one of the 3 Gremlins runs has 10 or more timeouts, about 50%; after the fix, slowest over fastest is 1.5 or less, about 70%; every one of the 3 Gremlins runs has 2 timeouts or fewer, about 65%; the efficacy of the post-fix runs stays at or above the 96% threshold, about 85% | | | |
