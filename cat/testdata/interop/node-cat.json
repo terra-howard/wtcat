@@ -1,0 +1,112 @@
+[
+  {
+    "name": "MAC with CWT tag, iss and nbf",
+    "source": "src/index.test.ts:275",
+    "token": "2D3RhEOhAQWhBFBha2FtYWlfa2V5X2hzMjU2WCijAXgYY29hcDovL2pvbmFzLmV4YW1wbGUuY29tBhpn1JipBRpn1JipWCCX4nQb8SYQoa0SFLxE2Rh35DdTjoA9TzOSy1IP9O1BGQ",
+    "at": 1741985962,
+    "source_expects": "accept",
+    "spec_requires": "accept",
+    "note": "Agrees.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388",
+    "issuer": "coap://jonas.example.com"
+  },
+  {
+    "name": "not yet expired, no iss",
+    "source": "src/index.test.ts:400",
+    "token": "2D3RhEOhAQWhBFBha2FtYWlfa2V5X2hzMjU2U6MEGnUCOrsGGmfXRKwFGmfXRKxYIOM6yRx830uqAamWFv1amFYRa5vaV2z5lIQTqFEvFh8z",
+    "at": 1742161069,
+    "source_expects": "accept",
+    "spec_requires": "accept",
+    "note": "Agrees. node-cat's test passes issuer 'eyevinn' although the token has no iss; wtcat's key carries no issuer, since a missing iss is acceptable.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388"
+  },
+  {
+    "name": "exp before nbf",
+    "source": "src/index.test.ts:410",
+    "token": "2D3RhEOhAQWhBFBha2FtYWlfa2V5X2hzMjU2U6MEGmfXP_YGGmfXQAsFGmfXQAtYINTT_KlOyhaV6NaSxFXkqJWfBagSkPkem10dysoA-C0w",
+    "at": 1742159883,
+    "source_expects": "refuse",
+    "spec_requires": "unacceptable",
+    "note": "Agrees on refusing. exp is 21 seconds before nbf, so no moment is inside the window.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388"
+  },
+  {
+    "name": "aud list, one listed audience matches",
+    "source": "src/index.test.ts:421",
+    "token": "2D3RhEOhAQWhBFBha2FtYWlfa2V5X2hzMjU2V6MDgmNvbmVjdHdvBhpn12R8BRpn12R8WCAdnSbUN4KbIvaHLn-q4f4YRpfq6ERYotByjbIyZ-EkfQ",
+    "at": 1742169213,
+    "source_expects": "accept",
+    "spec_requires": "accept",
+    "note": "Agrees.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388",
+    "audiences": [
+      "one",
+      "three"
+    ]
+  },
+  {
+    "name": "aud list, no listed audience matches",
+    "source": "src/index.test.ts:421",
+    "token": "2D3RhEOhAQWhBFBha2FtYWlfa2V5X2hzMjU2V6MDgmNvbmVjdHdvBhpn12R8BRpn12R8WCAdnSbUN4KbIvaHLn-q4f4YRpfq6ERYotByjbIyZ-EkfQ",
+    "at": 1742169213,
+    "source_expects": "refuse",
+    "spec_requires": "unacceptable",
+    "note": "Agrees.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388",
+    "audiences": [
+      "three"
+    ]
+  },
+  {
+    "name": "wrong issuer",
+    "source": "src/index.test.ts:391",
+    "token": "2D3RhEOhAQWhBFBha2FtYWlfa2V5X2hzMjU2VKMBZWpvbmFzBhpn12U-BRpn12U-WCDf1xHvhcnvyXUxd-DP4RAbayc8nC2PLJPPPbF3S00ruw",
+    "at": 1742169407,
+    "source_expects": "refuse",
+    "spec_requires": "unacceptable",
+    "note": "Agrees.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388",
+    "issuer": "coap://jonas.example.com"
+  },
+  {
+    "name": "MAC, claims as a hex text string",
+    "source": "src/index.test.ts:254",
+    "token": "0YRDoQEFoQRMU3ltbWV0cmljMjU2eDZkOTAxMDNhMTAxNzU2MzZmNjE3MDNhMmYyZjYxNzMyZTY1Nzg2MTZkNzA2YzY1MmU2MzZmNmRYIDL8dIteq8pMXXX9oL4eo2NX1kQUaselV6p/JHSEVXWX",
+    "at": 1443945004,
+    "source_expects": "accept",
+    "spec_requires": "malformed",
+    "note": "**Disagrees.** The text form uses '/' and '+', standard base64 rather than base64url (CTA-5007-B 4.3.1.1), and the payload is a CBOR text string of hexadecimal, not a byte string holding the claim set (RFC 8392 7.1).",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388"
+  },
+  {
+    "name": "HMAC 256/64, claims as a hex text string",
+    "source": "src/cat.test.ts:112",
+    "token": "0YRDoQEEoQRMU3ltbWV0cmljMjU2eKZkOTAxMDNhNzAxNzU2MzZmNjE3MDNhMmYyZjYxNzMyZTY1Nzg2MTZkNzA2YzY1MmU2MzZmNmQwMjY1NmE2ZjZlNjE3MzAzNzgxODYzNmY2MTcwM2EyZjJmNmM2OTY3Njg3NDJlNjU3ODYxNmQ3MDZjNjUyZTYzNmY2ZDA0MWE1NjEyYWViMDA1MWE1NjEwZDlmMDA2MWE1NjEwZDlmMDA3NDIwYjcxSKuCk/+kFmlY",
+    "at": 1443945004,
+    "source_expects": "accept",
+    "spec_requires": "malformed",
+    "note": "**Disagrees**, for the same two reasons as index.test.ts:254.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388"
+  },
+  {
+    "name": "text header label, tagged claims",
+    "source": "src/validators/http.test.ts:244",
+    "token": "2D3RhEOhAQW5AAFhNExTeW1tZXRyaWMyNTZYO9kBA6IBZ2V5ZXZpbm4ZATjZAQOjANkBA6EAZWh0dHBzA9kBA6EBaC9jb250ZW50CNkBA6EAZS5tM3U4WCCD42NQN46M44nvyg4eD4tKUo2+spMlXhtOHW3IiUFiXg==",
+    "at": 1700000000,
+    "source_expects": "not validated in the source test",
+    "spec_requires": "malformed",
+    "note": "The source test only finds this token in a request. wtcat refuses its text form, which is standard base64. Beneath that, the unprotected header uses the text label \"4\" for kid, and the claim set is wrapped in tag 259, which section 4.5 forbids on claim values.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388"
+  },
+  {
+    "name": "catr in a cookie-located token",
+    "source": "src/validators/http.test.ts:1166",
+    "token": "2D3RhFGiAQUETFN5bW1ldHJpYzI1NqBY-qcBZ2V5ZXZpbm4CeF41NmE1OGQ4OS0yYWJjLTRmZGMtOTM0Yy1jNzk5ODk0ZGIyNjc6NzEyZGUzYWJmMjgyMDMyYzdjMjY6OGEzMTg0M2YtNGIxZi00ODY4LWIyMzQtNjQxNTI2ZDAxMWU4BBpoMBvFBRpoMBuJBhpoMBuJB1gkYzdhNDlmZmQtY2M3OS00Y2U1LTkzMzEtNmIxMjZiY2RkMWRkGQFDpQABARg8AhgeA3dDVEEtQ29tbW9uLUFjY2Vzcy1Ub2tlbgWEZlNlY3VyZXJEb21haW49LnR2NHBsYXkuc2VmcGF0aD0vbVNhbWVTaXRlPU5vbmVYICmzyUJdc5QJKHDrqakTajuSnARci7xvCaAeb212P3Lr",
+    "at": 1747983250,
+    "source_expects": "not validated in the source test",
+    "spec_requires": "accept",
+    "note": "The source test only finds this token in a cookie. It verifies and is acceptable; without an Issuance, catr is ignored.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388",
+    "issuer": "eyevinn"
+  }
+]
