@@ -112,7 +112,7 @@ func TestParseProofAcceptsES256AndPS256(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rk, err := rsa.GenerateKey(rand.Reader, 2048)
+	rk, err := testRSAKey(t, 2048)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,7 @@ func TestParseProofRefuses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	small, err := rsa.GenerateKey(rand.Reader, 1024)
+	small, err := testRSAKey(t, 1024)
 	if err != nil {
 		t.Fatal(err)
 	}

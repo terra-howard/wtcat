@@ -81,7 +81,7 @@ func TestVerifyMessageAcceptsAMissingAlgUsingTheKeysAlgorithm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	rsaKey, err := testRSAKey(t, 2048)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -31,7 +31,7 @@ func TestVerifySign1ES256(t *testing.T) {
 }
 
 func TestVerifySign1PS256(t *testing.T) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := testRSAKey(t, 2048)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestVerifySign1Rejects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	rsaKey, err := testRSAKey(t, 2048)
 	if err != nil {
 		t.Fatal(err)
 	}
