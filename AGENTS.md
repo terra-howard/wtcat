@@ -45,3 +45,5 @@ deliverables of equal weight. The process is explained in
 - `go test ./...` runs every test.
 - `go run ./cmd/census` is the gate for protected tests. Green means every protected test exists, ran, passed and
   is unchanged. Red lists every reason. Run it before every commit.
+- `go test -run='^$' -bench=. -benchmem ./...` runs the benchmarks (task 59). Commit a prediction before reading
+  them (rule 7), and compare like with like: figures from different machines are not comparable.
