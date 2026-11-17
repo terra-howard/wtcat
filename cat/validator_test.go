@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fxamacker/cbor/v2"
 
 	"github.com/terra-howard/wtcat/cat"
 	"github.com/terra-howard/wtcat/cwt"
@@ -271,5 +275,29 @@ func TestValidateAcceptsTokensIssuedByCwt(t *testing.T) {
 		if _, err := v.Validate(base64.RawURLEncoding.EncodeToString(raw)); err != nil {
 			t.Errorf("algorithm %d: %v", tc.sign.Algorithm, err)
 		}
+	}
+}
+
+// TestValidateCOSEMac checks that a CAT MACed as a COSE_Mac with a direct recipient is validated end to end
+// (decision 0029), and that the recipient's kid selects the key.
+func TestValidateCOSEMac(t *testing.T) {
+	protected := enc(t, map[int64]any{1: 5})
+	payload := enc(t, map[any]any{1: "issuer", 4: 1700000060})
+	h := hmac.New(sha256.New, hmacSecret)
+	h.Write(enc(t, []any{"MAC", protected, []byte{}, payload}))
+	recipients := []any{
+		[]any{[]byte{}, map[int64]any{1: -6, 4: []byte("unknown")}, []byte{}},
+		[]any{[]byte{}, map[int64]any{1: -6, 4: []byte("k1")}, []byte{}},
+	}
+	token := base64.RawURLEncoding.EncodeToString(enc(t, cbor.Tag{Number: 97, Content: []any{protected, map[int64]any{}, payload, h.Sum(nil), recipients}}))
+	var asked [][]byte
+	v := validator()
+	v.Keys = keys(&asked)
+	tok, err := v.Validate(token)
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if string(tok.KID) != "k1" {
+		t.Fatalf("KID = %q", tok.KID)
 	}
 }

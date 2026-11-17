@@ -118,8 +118,9 @@ server would otherwise send the response without passing through the writer at a
 - **`catgeocoord`** must arrive in an encrypted claim, and this package does not decrypt, so supporting it could
   only mean refusing it. It is ignored, which the specification allows.
 - **Encrypted tokens** are optional for recipients and have no mandatory algorithm; decision 0005 deferred them.
-- **COSE messages with several signers or recipients** are allowed by RFC 8392 but not used by any CAT example or
-  known issuer, and need per-recipient key handling. They are the most likely next addition, by their own decision.
+- **COSE_Mac recipients that wrap or agree keys.** Messages with several signers or recipients are verified
+  ([0029](../decisions/0029-several-signers-or-recipients.md)), but only recipients using the direct method, since
+  CAT's MAC keys are shared secrets. Key wrapping and key agreement need key material this package does not handle.
 
 The rule behind all of these: verification is not shipped without something independent to check it against
 ([0008](../decisions/0008-verification-rules.md), [0015](../decisions/0015-reconciling-with-cta-5007-b.md),
