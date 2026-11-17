@@ -9,6 +9,8 @@ import (
 	"errors"
 	"os"
 	"testing"
+
+	"github.com/fxamacker/cbor/v2"
 )
 
 func loadEncrypt0(t *testing.T, path string) (token []byte, lookup KeyLookup) {
@@ -107,6 +109,45 @@ func TestDecryptMessageKeys(t *testing.T) {
 			_, err := DecryptMessage(token, func([]byte) (Key, error) { return tc.key, nil })
 			if tc.want == nil && err != nil || tc.want != nil && !errors.Is(err, tc.want) {
 				t.Fatalf("got %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestIsEncrypted(t *testing.T) {
+	token, _ := loadEncrypt0(t, "aes-gcm-examples/aes-gcm-enc-01.json")
+	var raw cbor.RawMessage = token
+	var parts []cbor.RawMessage
+	var tag cbor.RawTag
+	if err := cbor.Unmarshal(token, &tag); err != nil {
+		t.Fatal(err)
+	}
+	if err := cbor.Unmarshal(tag.Content, &parts); err != nil {
+		t.Fatal(err)
+	}
+	enc := func(v any) []byte {
+		b, err := cbor.Marshal(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	for name, tc := range map[string]struct {
+		token []byte
+		want  bool
+	}{
+		"tagged COSE_Encrypt0":              {token, true},
+		"COSE_Encrypt0 under a CWT tag":     {enc(cbor.Tag{Number: 61, Content: raw}), true},
+		"untagged COSE_Encrypt0":            {enc(parts), true},
+		"a COSE_Mac0":                       {enc(cbor.Tag{Number: 17, Content: []any{[]byte{}, map[int64]any{}, []byte{}, []byte{}}}), false},
+		"an untagged four-element array":    {enc([]any{1, 2, 3, 4}), false},
+		"a map":                             {enc(map[int64]any{1: 2}), false},
+		"empty":                             {nil, false},
+		"a CWT tag around a non-COSE value": {enc(cbor.Tag{Number: 61, Content: []any{1, 2, 3}}), false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := IsEncrypted(tc.token); got != tc.want {
+				t.Fatalf("IsEncrypted = %v, want %v", got, tc.want)
 			}
 		})
 	}

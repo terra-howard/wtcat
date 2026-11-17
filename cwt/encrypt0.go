@@ -53,8 +53,6 @@ func DecryptMessage(token []byte, lookup KeyLookup) (*Message, error) {
 			}
 		}
 		body = rt.Content
-	} else if len(token) > 0 && majorType(token) == majorTag {
-		return nil, malformed("token: unreadable tag")
 	}
 	var parts []cbor.RawMessage
 	if err := decMode.Unmarshal(body, &parts); err != nil {
@@ -100,8 +98,11 @@ func DecryptMessage(token []byte, lookup KeyLookup) (*Message, error) {
 		return nil, unverified("the token's alg is %v but its key is for %v", alg, key.Algorithm)
 	}
 	secret, ok := key.Material.([]byte)
-	if !ok || len(secret) != size {
-		return nil, unverified("%v needs a %d-byte key", key.Algorithm, size)
+	if !ok {
+		return nil, unverified("%v needs a []byte key, got %T", key.Algorithm, key.Material)
+	}
+	if len(secret) != size {
+		return nil, unverified("%v needs a %d-byte key, got %d bytes", key.Algorithm, size, len(secret))
 	}
 	block, err := aes.NewCipher(secret)
 	if err != nil {
