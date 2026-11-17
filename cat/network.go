@@ -25,7 +25,7 @@ type netMatch struct {
 }
 
 // decodeCatnip decodes a catnip claim under decision 0017.
-func decodeCatnip(value cbor.RawMessage) ([]netMatch, error) {
+func decodeCatnip(value cbor.RawMessage, encrypted bool) ([]netMatch, error) {
 	if len(value) == 0 || majorType(value) != majorArray {
 		return nil, malformed("claim 311 (catnip) is not an array")
 	}
@@ -46,7 +46,7 @@ func decodeCatnip(value cbor.RawMessage) ([]netMatch, error) {
 			}
 			out = append(out, netMatch{asn: asn})
 		case majorTag:
-			p, err := decodePrefix(item)
+			p, err := decodePrefix(item, encrypted)
 			if err != nil {
 				return nil, err
 			}
@@ -60,7 +60,7 @@ func decodeCatnip(value cbor.RawMessage) ([]netMatch, error) {
 
 // decodePrefix decodes an RFC 9164 prefix under tag 52 or 54, refusing addresses, the address-with-prefix form,
 // prefixes more specific than section 4.6.9 allows unencrypted, and prefixes not in RFC 9164's own encoding.
-func decodePrefix(item cbor.RawMessage) (netip.Prefix, error) {
+func decodePrefix(item cbor.RawMessage, encrypted bool) (netip.Prefix, error) {
 	var tag cbor.RawTag
 	if err := decMode.Unmarshal(item, &tag); err != nil {
 		return netip.Prefix{}, malformed("claim 311 (catnip): %v", err)
@@ -75,7 +75,15 @@ func decodePrefix(item cbor.RawMessage) (netip.Prefix, error) {
 	}
 	content := []byte(tag.Content)
 	if majorType(content) != majorArray {
-		return netip.Prefix{}, malformed("claim 311 (catnip) names a full address, which section 4.6.9 requires to be encrypted")
+		if !encrypted {
+			return netip.Prefix{}, malformed("claim 311 (catnip) names a full address, which section 4.6.9 requires to be encrypted")
+		}
+		var b []byte
+		if majorType(content) != majorBytes || decMode.Unmarshal(content, &b) != nil || len(b) != size {
+			return netip.Prefix{}, malformed("claim 311 (catnip): an address is a byte string of %d bytes", size)
+		}
+		addr, _ := netip.AddrFromSlice(b)
+		return netip.PrefixFrom(addr, 8*size), nil
 	}
 	var parts []cbor.RawMessage
 	if err := decMode.Unmarshal(content, &parts); err != nil || len(parts) != 2 {
@@ -98,7 +106,7 @@ func decodePrefix(item cbor.RawMessage) (netip.Prefix, error) {
 	switch {
 	case length > uint64(8*size):
 		return netip.Prefix{}, malformed("claim 311 (catnip): prefix length %d is beyond the address size", length)
-	case length > uint64(limit):
+	case length > uint64(limit) && !encrypted:
 		return netip.Prefix{}, malformed("claim 311 (catnip): a /%d prefix must be encrypted (section 4.6.9)", length)
 	case len(prefix) > int(length+7)/8:
 		return netip.Prefix{}, malformed("claim 311 (catnip): more prefix bytes than a /%d prefix needs", length)

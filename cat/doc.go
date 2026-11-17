@@ -23,8 +23,8 @@
 //	exp (4)              the current time must be before it, with no leeway
 //	nbf (5)              the current time must not be before it, with no leeway
 //	cnf (8)              with jkt: the request's DPoP proof must be made with that key and match the request
-//	geohash (282)        with Request.Location.Coordinates set: the client must be in a listed region; only
-//	                     geohashes of 4 characters or fewer can be accepted unencrypted (decision 0027)
+//	geohash (282)        with Request.Location.Coordinates set: the client must be in a listed region; up to 4
+//	                     characters unencrypted, up to 12 in an encrypted token (decisions 0027 and 0030)
 //	catreplay (308)      with Validator.Replay set: 1 or 2 refuses a cti seen before; 0 never refuses
 //	catv (310)           must be 1
 //	catnip (311)         the client's address must lie in a listed prefix, or its ASN be listed
@@ -33,6 +33,8 @@
 //	catalpn (314)        with Request.Connection set: the negotiated ALPN must be listed
 //	cath (315)           each named header must be present and match
 //	catgeoiso3166 (316)  with Request.Location set: the client must be in a listed country or region
+//	catgeocoord (317)    only in an encrypted token; with Request.Location.Coordinates set: the client must be
+//	                     within the radius of a listed location (decision 0030)
 //	cattpk (319)         with Request.Connection set: a client certificate must have the listed key
 //	catdpop (321)        sets the DPoP proof's window; crit is honoured; jti never causes a refusal
 //
@@ -41,7 +43,7 @@
 // unsupported too. sub (2), iat (6) and cti (7) are decoded and type-checked, and are informational here.
 //
 // Every other claim is ignored, as section 4.5 requires of claims a recipient does not support: catpor,
-// catgeocoord, catgeoalt and catifdata, and catreplay, catgeoiso3166, geohash, catalpn and cattpk when the caller
+// catgeoalt and catifdata, and catreplay, catgeoiso3166, geohash, catgeocoord, catalpn and cattpk when the caller
 // does not supply what they need (decisions 0021 and 0027).
 //
 // # Issuing tokens
@@ -53,15 +55,17 @@
 //
 // # Details
 //
-// Algorithms: HMAC 256/64, HMAC 256/256, ES256 and PS256, in COSE_Mac0 or COSE_Sign1, each key bound to one of
-// them. Encrypted tokens and messages with more than one signer or recipient are not supported.
+// Algorithms: HMAC 256/64, HMAC 256/256, ES256 and PS256, in COSE_Mac0 or COSE_Sign1, or in a COSE_Mac with direct
+// recipients or a COSE_Sign (decision 0029), each key bound to one of them. With Validator.DecryptionKeys set, a
+// token may also be a COSE_Encrypt0 with A128GCM, A192GCM or A256GCM, whose plaintext is a claim set or a nested
+// signed or MACed CWT; its claims count as encrypted (decision 0030). AES-CCM is not supported.
 //
 // For catu, Request.URI must be the absolute request URI with the token already removed, as section 4.6.10
 // describes; package cathttp does this. This package normalizes it before matching (RFC 9110 Section 4.2.3, RFC
 // 3986 Sections 6.2.2 and 6.2.3), so a default port becomes the empty port component.
 //
-// A catnip claim naming a full address, or a prefix longer than /24 (IPv4) or /56 (IPv6), is malformed: section
-// 4.6.9 requires such values to be encrypted, and this package does not decrypt tokens.
+// A catnip claim naming a full address, or a prefix longer than /24 (IPv4) or /56 (IPv6), is malformed unless the
+// token is encrypted, as section 4.6.9 requires.
 //
 // Regular expressions in matches are POSIX extended regular expressions, run by regexp.CompilePOSIX, which takes
 // time linear in its input. Two differences from POSIX are handled as decision 0017 records: among several
@@ -90,4 +94,5 @@
 //	helpers_test.go   token builders shared by the external tests
 //	example_test.go   ExampleValidator, checked by go test
 //	cta_test.go       tests against CTA-5007-B's own examples, built with -tags cta (decision 0014)
+//	encrypted_test.go encrypted tokens through the Validator, end to end (decision 0030)
 package cat

@@ -109,16 +109,14 @@ server would otherwise send the response without passing through the writer at a
 
 ## Deliberately not supported
 
-- **`geohash` longer than four characters.** Section 4.6.16 requires such a geohash to arrive in an encrypted claim,
-  and this package does not decrypt, so it refuses them. Geohashes of up to four characters are enforced
-  ([0027](../decisions/0027-geohash.md)).
 - **Composition claims** (`and`, `or`, `nor`, `crit`, `env`) are only proposed, in an IETF draft that section 3.1
   cites. They have no assigned claim keys, and CTA-5007-B says they cannot be used yet, so there is nothing to
   build until they are published.
 - **`catgeoalt`** needs a client's altitude, which almost no recipient knows; it waits for one that does.
-- **`catgeocoord`** must arrive in an encrypted claim, and this package does not decrypt, so supporting it could
-  only mean refusing it. It is ignored, which the specification allows.
-- **Encrypted tokens** are optional for recipients and have no mandatory algorithm; decision 0005 deferred them.
+- **AES-CCM, and COSE_Encrypt with several recipients.** Encrypted tokens are decrypted as COSE_Encrypt0 with
+  AES-GCM and a direct key ([0030](../decisions/0030-encrypted-tokens.md)). RFC 8392's own encrypted examples use
+  AES-CCM, which neither Go's standard library nor `golang.org/x/crypto` provides, and writing a block-cipher mode
+  waits for an issuer that needs it.
 - **COSE_Mac recipients that wrap or agree keys.** Messages with several signers or recipients are verified
   ([0029](../decisions/0029-several-signers-or-recipients.md)), but only recipients using the direct method, since
   CAT's MAC keys are shared secrets. Key wrapping and key agreement need key material this package does not handle.
