@@ -1,0 +1,87 @@
+[
+  {
+    "name": "no kid, single key",
+    "source": "tests/cat_test.zig:188",
+    "token": "2D3RhEOhAQWgSqEBZ2V4YW1wbGVYIPwGJGdehd7NQCburSfZlnB2NHCBoZNz3S5WutPo3LbG",
+    "at": 1700000000,
+    "source_expects": "accept",
+    "spec_requires": "accept",
+    "note": "Agrees.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388",
+    "issuer": "example"
+  },
+  {
+    "name": "alg in the unprotected header",
+    "source": "tests/cat_test.zig:199",
+    "token": "2D3RhECiAQUETFN5bW1ldHJpYzI1NkqhAWdleGFtcGxlWCDTrnRTlvVCj1wxNjjuk07NIS192C-4B2uHhGuEzOvL0g",
+    "at": 1700000000,
+    "source_expects": "refuse",
+    "spec_requires": "malformed",
+    "note": "Agrees on refusing.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388"
+  },
+  {
+    "name": "text kid in the protected header",
+    "source": "tests/cat_test.zig:192",
+    "token": "2D3RhFGiAQUEbFN5bW1ldHJpYzI1NqBKoQFnZXhhbXBsZVggxCSke5l_QQ8cXt9nmj03aoKbe43V-z7dtUBJIeIVz8E",
+    "at": 1700000000,
+    "source_expects": "accept",
+    "spec_requires": "malformed",
+    "note": "**Disagrees.** RFC 9052 3.1 defines kid as a byte string. The Zig library accepts a text kid because rust-cat can send one.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388"
+  },
+  {
+    "name": "HMAC 384 label with an HMAC 256 tag",
+    "source": "tests/cat_test.zig:197",
+    "token": "2D3RhFGiAQYETFN5bW1ldHJpYzI1NqBKoQFnZXhhbXBsZVggvLDsMPDzVQmQnYFIjpR_gcrlN6INkekL3_vK-gHO1d8",
+    "at": 1700000000,
+    "source_expects": "refuse",
+    "spec_requires": "unsupported",
+    "note": "Agrees on refusing. wtcat supports neither HMAC 384/384 nor a mismatched tag.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388"
+  },
+  {
+    "name": "crit names an unknown parameter",
+    "source": "tests/cat_test.zig:203",
+    "token": "2D3RhFgYpAEFBExTeW1tZXRyaWMyNTYCgRhjGGMAoEqhAWdleGFtcGxlWCC75DCI7MhJ6dzi333dN0CPxAuZKxueZ7yUkVedV6S5eQ",
+    "at": 1700000000,
+    "source_expects": "refuse",
+    "spec_requires": "unsupported",
+    "note": "Agrees on refusing (RFC 9052 3.1, crit).",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388"
+  },
+  {
+    "name": "header nested deeper than 32",
+    "source": "tests/cat_test.zig:257",
+    "token": "2D3RhEOhAQWhBYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYEASqEBZ2V4YW1wbGVYIPwGJGdehd7NQCburSfZlnB2NHCBoZNz3S5WutPo3LbG",
+    "at": 1700000000,
+    "source_expects": "refuse",
+    "spec_requires": "malformed",
+    "note": "Agrees on refusing.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388"
+  },
+  {
+    "name": "header label 2^64-1",
+    "source": "tests/cat_test.zig:260",
+    "token": "2D3RhEOhAQWhG___________AEqhAWdleGFtcGxlWCD8BiRnXoXezUAm7q0n2ZZwdjRwgaGTc90uVrrT6Ny2xg",
+    "at": 1700000000,
+    "source_expects": "refuse",
+    "spec_requires": "unsupported",
+    "note": "Agrees on refusing.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388"
+  },
+  {
+    "name": "README example",
+    "source": "README.md:164",
+    "token": "2D3RhEOhAQWhBExTeW1tZXRyaWMyNTZYS6YHWCA1YmJjNDI2NWVmYTAxOGI4YjU4Y2I5OTQyY2IwODFmMQFnZXhhbXBsZQQaaQpK1gYaaQpKXgJndXNlcjEyMwNnc2VydmljZVggNRE3wudeG0Fd-vJMZiLpNRO6WU9lrtByioSvzuAEi7U",
+    "at": 1762282100,
+    "source_expects": "accept",
+    "spec_requires": "accept",
+    "note": "Agrees.",
+    "key_hex": "403697de87af64611c1d32a05dab0fe1fcb715a86ab435f1ec99192d79569388",
+    "issuer": "example",
+    "audiences": [
+      "service"
+    ]
+  }
+]
