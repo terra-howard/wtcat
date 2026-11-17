@@ -125,3 +125,14 @@ func FuzzVerifyMac0(f *testing.F) {
 		}
 	})
 }
+
+// BenchmarkVerifyMac0 measures one HMAC 256/256 verification of a small claim set (task 59).
+func BenchmarkVerifyMac0(b *testing.B) {
+	token := defaultMac0(b).build(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := cwt.VerifyMac0(token, testKey); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

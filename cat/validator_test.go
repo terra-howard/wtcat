@@ -273,3 +273,39 @@ func TestValidateAcceptsTokensIssuedByCwt(t *testing.T) {
 		}
 	}
 }
+
+// benchClaims is a typical claim set for the benchmarks: issuer, audience, expiry and token ID.
+var benchClaims = map[any]any{1: "issuer", 3: "cdn.example", 4: 1700000060, 7: []byte("token-id-0001")}
+
+// BenchmarkValidate measures one Validate of a typical CAT, for each algorithm (task 59).
+func BenchmarkValidate(b *testing.B) {
+	b.Run("HMAC256", func(b *testing.B) {
+		v, token := validator(), claimsToken(b, benchClaims)
+		b.ReportAllocs()
+		for b.Loop() {
+			if _, err := v.Validate(token); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("ES256", func(b *testing.B) {
+		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			b.Fatal(err)
+		}
+		v := &cat.Validator{
+			Keys: func([]byte) (cat.Key, error) {
+				return cat.Key{Key: cwt.Key{Algorithm: cwt.ES256, Material: &priv.PublicKey}, Issuer: "issuer"}, nil
+			},
+			Audiences: []string{"cdn.example"},
+			Now:       func() time.Time { return testNow },
+		}
+		token := es256Text(b, priv, benchClaims)
+		b.ReportAllocs()
+		for b.Loop() {
+			if _, err := v.Validate(token); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
