@@ -1,0 +1,26 @@
+[
+  {
+    "name": "catu parent-path and filename",
+    "source": "src/tests.rs:252",
+    "token": "2D3RhEOhAQWhBExTeW1tZXRyaWMyNTZYmKQBZ2Nkbm5hbWUCeCxBNXMyRnptNUI5UG5EVEVmS3VybGxMdnJUelJLSWl4ZERsMWI0TEZzZlB3PQQaaIqzLBkBOKIFoQJ4Ji9lMDU5Lzc4MTEvMTY0MC80N2UxLTk5MzAtMmE0MzQxZWE4YjEwBqEBeCUvMWJkMWUyNmUtMzQwNy00ODA1LWI4MDYtMTMyMTZiMzRkNGJmWCBxCao7OrEJkkIQ8DcTNUFB-bMV4vUcVohXksntwc42_w",
+    "at": 1753920000,
+    "source_expects": "accept (MAC only; claims not checked)",
+    "spec_requires": "unacceptable",
+    "note": "The MAC verifies. The catu filename component (6) is a prefix match on a value beginning with '/', and a filename never contains '/', so no request can match. The source test checks only the MAC.",
+    "key_text": "testKey",
+    "issuer": "cdnname",
+    "uri": "https://cdn.example/e059/7811/1640/47e1-9930-2a4341ea8b10/1bd1e26e-3407-4805-b806-13216b34d4bf.m3u8"
+  },
+  {
+    "name": "catu and catr",
+    "source": "src/tests.rs:553",
+    "token": "2D3RhEOhAQWhBEd0ZXN0S2lkWOCnAWpwcmltZXZpZGVvAngkNWI4ZWQ2YjItZmNhNC00ZWQ1LTkxNWYtNThjZTFiMGYzMDRiB1gkZjI0ZmIxMDctNDA0MS00MTkxLThkMDktOWMzMzZkNWVjNzAyBRpofDGABBpoirIAGQE4ogahAXgkNGFkZGQ5ZTctZTUzMS00NzIxLTlhNjctYjJlNzQ1OTIyMmJiBaECeCYvZTA1OS83ODExLzE2NDAvNDdlMS05OTMwLTJhNDM0MWVhOGIxMBkBQ6MAAgEZA4QEdVgtUFYtQ0ROLUFjY2Vzcy1Ub2tlblggdBNqM-3RwdEOuIZ2UoF-jDq3z7DvNcjUWSISjCiugR4",
+    "at": 1752969700,
+    "source_expects": "accept (claims checked without exp and nbf)",
+    "spec_requires": "accept",
+    "note": "Agrees. Judged inside the token's window with a URI the catu claim matches; without an Issuance, catr is ignored.",
+    "key_text": "testSecret",
+    "issuer": "primevideo",
+    "uri": "https://cdn.example/e059/7811/1640/47e1-9930-2a4341ea8b10/4addd9e7-e531-4721-9a67-b2e7459222bb.mpd"
+  }
+]

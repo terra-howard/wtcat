@@ -90,4 +90,5 @@
 //	helpers_test.go   token builders shared by the external tests
 //	example_test.go   ExampleValidator, checked by go test
 //	cta_test.go       tests against CTA-5007-B's own examples, built with -tags cta (decision 0014)
+//	interop_test.go   fixtures from other CAT implementations, judged by the specification (decision 0026)
 package cat
