@@ -261,12 +261,33 @@ func TestMultiRules(t *testing.T) {
 			[]any{append(append([]any{}, recipient...), []any{})}), ErrUnsupported},
 		"alg in a COSE_Sign body": {enc(cbor.Tag{Number: 98, Content: []any{enc(map[int64]any{1: -7}), map[int64]any{}, []byte("x"),
 			[]any{[]any{enc(map[int64]any{1: -7}), map[int64]any{4: []byte("k")}, make([]byte, 64)}}}}), ErrMalformed},
-		"a wrong MAC tag":                        {mac(enc(map[int64]any{1: 5}), map[int64]any{}, []any{recipient}), ErrVerification},
-		"an untagged COSE_Mac is not recognised": {enc([]any{enc(map[int64]any{1: 5}), map[int64]any{}, []byte("x"), make([]byte, 32), []any{recipient}}), ErrMalformed},
+		"a wrong MAC tag": {mac(enc(map[int64]any{1: 5}), map[int64]any{}, []any{recipient}), ErrVerification},
+		"a text recipient alg": {mac(enc(map[int64]any{1: 5}), map[int64]any{},
+			[]any{[]any{[]byte{}, map[int64]any{1: "direct", 4: []byte("k")}, []byte{}}}), ErrUnsupported},
+		"a CWT tag around something that is not a COSE message": {enc(cbor.Tag{Number: 61, Content: []any{1, 2}}), ErrMalformed},
+		"an untagged COSE_Mac is not recognised":                {enc([]any{enc(map[int64]any{1: 5}), map[int64]any{}, []byte("x"), make([]byte, 32), []any{recipient}}), ErrMalformed},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := VerifyMessage(tc.token, lookup); !errors.Is(err, tc.want) {
 				t.Fatalf("got %v, want an error wrapping %v", err, tc.want)
+			}
+		})
+	}
+}
+
+// TestMultiUnderCWTTag checks that a COSE_Mac or COSE_Sign inside a CWT tag (61, RFC 8392 Section 6) is verified as
+// the multi-party form it holds.
+func TestMultiUnderCWTTag(t *testing.T) {
+	for _, path := range []string{"mac-tests/HMac-01.json", "RFC8152/Appendix_C_1_2.json"} {
+		t.Run(path, func(t *testing.T) {
+			token, v := loadMulti(t, path)
+			var inner cbor.RawMessage = token
+			wrapped, err := cbor.Marshal(cbor.Tag{Number: 61, Content: inner})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := VerifyMessage(wrapped, lookupFor(t, v, HMAC256x256)); err != nil {
+				t.Fatalf("VerifyMessage: %v", err)
 			}
 		})
 	}
