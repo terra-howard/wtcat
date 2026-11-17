@@ -109,8 +109,9 @@ server would otherwise send the response without passing through the writer at a
 
 ## Deliberately not supported
 
-- **`geohash`** takes its rules from another standard, CTA-5009-A, which this project has not read; building it
-  would mean guessing.
+- **`geohash` longer than four characters.** Section 4.6.16 requires such a geohash to arrive in an encrypted claim,
+  and this package does not decrypt, so it refuses them. Geohashes of up to four characters are enforced
+  ([0027](../decisions/0027-geohash.md)).
 - **Composition claims** (`and`, `or`, `nor`, `crit`, `env`) are only proposed, in an IETF draft that section 3.1
   cites. They have no assigned claim keys, and CTA-5007-B says they cannot be used yet, so there is nothing to
   build until they are published.

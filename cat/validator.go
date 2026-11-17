@@ -156,6 +156,9 @@ func (v *Validator) accept(claims *Claims, issuer string, req *Request, token st
 	if err := checkLocation(claims, req); err != nil {
 		return err
 	}
+	if err := checkGeohash(claims, req); err != nil {
+		return err
+	}
 	if err := checkConnection(claims, req); err != nil {
 		return err
 	}

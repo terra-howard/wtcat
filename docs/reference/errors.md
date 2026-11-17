@@ -35,7 +35,7 @@ that refused it, which `Validator.IfResponse` uses to answer as the token's `cat
 | `cat.ErrMethod` | `catm` (313) | The request's method is not listed |
 | `cat.ErrConnection` | `catalpn` (314), `cattpk` (319) | The request was not made over TLS, its ALPN is not listed, or no client certificate has the listed key |
 | `cat.ErrHeader` | `cath` (315) | A named header is missing, or its value does not match |
-| `cat.ErrLocation` | `catgeoiso3166` (316) | The client is not in a listed country or region, or could not be located |
+| `cat.ErrLocation` | `catgeoiso3166` (316), `geohash` (282) | The client is not in a listed country, region or geohash cell, or could not be located |
 
 ## Other errors from `cwt`
 
