@@ -3,6 +3,7 @@
 - **Status:** accepted, 2026-11-15
 - **Decided by:** Terra Howard, that mutation testing runs in CI. Its shape and thresholds were chosen by Claude
   under her delegation, pending her review.
+- **Review:** unreviewed. The owner has not yet reviewed this decision (marked 2026-11-17).
 
 ## Question asked
 

@@ -2,6 +2,7 @@
 
 - **Status:** accepted, 2026-11-15
 - **Decided by:** Claude, under Terra Howard's delegation; pending her review. She may reverse it.
+- **Review:** unreviewed. The owner has not yet reviewed this decision (marked 2026-11-17).
 
 ## Question asked
 

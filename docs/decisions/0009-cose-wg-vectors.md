@@ -3,6 +3,7 @@
 - **Status:** accepted, 2026-11-14
 - **Decided by:** Claude, under Terra Howard's delegation for an experiment (see decision 0007). Pending her
   review; she may reverse it.
+- **Review:** unreviewed. The owner has not yet reviewed this decision (marked 2026-11-17).
 
 ## Question asked
 
