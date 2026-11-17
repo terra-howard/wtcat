@@ -16,7 +16,7 @@ func TestIssueVerifies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rk, err := rsa.GenerateKey(rand.Reader, 2048)
+	rk, err := testRSAKey(t, 2048)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestIssueRefuses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	small, err := rsa.GenerateKey(rand.Reader, 1024)
+	small, err := testRSAKey(t, 1024)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestIssueRefuses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	big, err := rsa.GenerateKey(rand.Reader, 2048) // large enough that only the algorithm check can refuse it
+	big, err := testRSAKey(t, 2048) // large enough that only the algorithm check can refuse it
 	if err != nil {
 		t.Fatal(err)
 	}

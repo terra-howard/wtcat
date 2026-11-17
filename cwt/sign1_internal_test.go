@@ -205,7 +205,7 @@ func TestPS256MatchesCOSEWG(t *testing.T) {
 // rule can reject it. (A first version reused the vector's signature, which fails on any other key regardless;
 // hand mutation testing showed the size rule could be weakened without that test noticing.)
 func TestPS256RejectsKeysBelow2048Bits(t *testing.T) {
-	small, err := rsa.GenerateKey(rand.Reader, 1024)
+	small, err := testRSAKey(t, 1024)
 	if err != nil {
 		t.Fatal(err)
 	}
