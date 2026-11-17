@@ -154,3 +154,40 @@ func FuzzVerifySign1(f *testing.F) {
 		}
 	})
 }
+
+// BenchmarkVerifySign1 measures one signature verification of a small claim set, for each algorithm (task 59).
+func BenchmarkVerifySign1(b *testing.B) {
+	b.Run("ES256", func(b *testing.B) {
+		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			b.Fatal(err)
+		}
+		token := es256Token(b, priv, map[int64]any{1: -7}, 64)
+		b.ReportAllocs()
+		for b.Loop() {
+			if _, err := cwt.VerifySign1(token, &priv.PublicKey); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("PS256", func(b *testing.B) {
+		priv, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			b.Fatal(err)
+		}
+		protectedRaw := encode(b, map[int64]any{1: -37})
+		payload := encode(b, map[int64]any{1: "issuer"})
+		digest := sha256.Sum256(encode(b, []any{"Signature1", protectedRaw, []byte{}, payload}))
+		sig, err := rsa.SignPSS(rand.Reader, priv, crypto.SHA256, digest[:], &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
+		if err != nil {
+			b.Fatal(err)
+		}
+		token := encode(b, cbor.Tag{Number: 18, Content: []any{protectedRaw, map[int64]any{}, payload, sig}})
+		b.ReportAllocs()
+		for b.Loop() {
+			if _, err := cwt.VerifySign1(token, &priv.PublicKey); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}

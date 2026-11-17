@@ -29,7 +29,7 @@ var detEnc = func() cbor.EncMode {
 	return em
 }()
 
-func enc(t *testing.T, v any) []byte {
+func enc(t testing.TB, v any) []byte {
 	t.Helper()
 	b, err := detEnc.Marshal(v)
 	if err != nil {
@@ -60,7 +60,7 @@ type mac0 struct {
 	payload   []byte // the encoded claim set
 }
 
-func (m mac0) bytes(t *testing.T) []byte {
+func (m mac0) bytes(t testing.TB) []byte {
 	t.Helper()
 	protected := m.protected
 	if protected == nil {
@@ -75,16 +75,16 @@ func (m mac0) bytes(t *testing.T) []byte {
 	return enc(t, cbor.Tag{Number: 17, Content: []any{protected, unprotected, m.payload, h.Sum(nil)}})
 }
 
-func (m mac0) text(t *testing.T) string { return base64.RawURLEncoding.EncodeToString(m.bytes(t)) }
+func (m mac0) text(t testing.TB) string { return base64.RawURLEncoding.EncodeToString(m.bytes(t)) }
 
 // claimsToken is an HMAC 256/256 CAT with kid "k1" carrying the given claims.
-func claimsToken(t *testing.T, claims map[any]any) string {
+func claimsToken(t testing.TB, claims map[any]any) string {
 	t.Helper()
 	return mac0{kid: []byte("k1"), payload: enc(t, claims)}.text(t)
 }
 
 // es256Text signs a claim set as a tagged COSE_Sign1 with ES256 and no alg header.
-func es256Text(t *testing.T, priv *ecdsa.PrivateKey, claims map[any]any) string {
+func es256Text(t testing.TB, priv *ecdsa.PrivateKey, claims map[any]any) string {
 	t.Helper()
 	protected := []byte{}
 	payload := enc(t, claims)

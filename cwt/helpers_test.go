@@ -25,7 +25,7 @@ import (
 	"github.com/terra-howard/wtcat/cwt"
 )
 
-func encode(t *testing.T, v any) []byte {
+func encode(t testing.TB, v any) []byte {
 	t.Helper()
 	b, err := cbor.Marshal(v)
 	if err != nil {
@@ -106,7 +106,7 @@ type mac0Token struct {
 	key          []byte
 }
 
-func defaultMac0(t *testing.T) mac0Token {
+func defaultMac0(t testing.TB) mac0Token {
 	return mac0Token{
 		protectedRaw: encode(t, map[int64]any{1: 5}),
 		unprotected:  map[int64]any{},
@@ -118,7 +118,7 @@ func defaultMac0(t *testing.T) mac0Token {
 	}
 }
 
-func (m mac0Token) build(t *testing.T) []byte {
+func (m mac0Token) build(t testing.TB) []byte {
 	t.Helper()
 	var payloadBytes []byte
 	if b, ok := m.payload.([]byte); ok {
@@ -140,7 +140,7 @@ func (m mac0Token) build(t *testing.T) []byte {
 
 // es256Token signs claims as a tagged COSE_Sign1 with ES256 for rule tests. The signature structure is checked
 // against an outside vector in sign1_internal_test.go.
-func es256Token(t *testing.T, priv *ecdsa.PrivateKey, protected map[int64]any, sigLen int) []byte {
+func es256Token(t testing.TB, priv *ecdsa.PrivateKey, protected map[int64]any, sigLen int) []byte {
 	t.Helper()
 	protectedRaw := encode(t, protected)
 	payload := encode(t, map[int64]any{1: "issuer"})
