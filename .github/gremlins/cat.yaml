@@ -5,6 +5,7 @@
 unleash:
   integration: true
   timeout-coefficient: 10
+  workers: 2 # decision 0028: a hosted runner has four CPUs, and each worker runs the whole suite. Never set test-cpu.
   threshold:
     efficacy: 92.5 # measured 93.60% in task 55
     mutant-coverage: 88 # measured 90.90%; a run where mutants time out en masse falls below this
