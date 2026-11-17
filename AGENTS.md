@@ -36,8 +36,9 @@ deliverables of equal weight. The process is explained in
   that need the package's internals go in `mac0_internal_test.go`. Fuzz targets sit with their subject's tests.
   Helpers shared across a package's tests go in `helpers_test.go`. A package's `doc.go` maps its files; update it
   when you add one.
-- Small commits, one task each, with a message that says what changed and why. Commits are authored by Terra
-  Howard; agent-assisted commits add a `Co-Authored-By` trailer.
+- Small commits, one task each, with a message that says what changed and why. Commits are authored by whoever
+  made them: the owner's under her own identity, and an agent's under its own account (Cairn's is
+  `cairn-claude`, through its GitHub noreply address). Agent commits add a `Co-Authored-By` trailer naming the model.
 - Documentation follows Diátaxis. No em-dashes anywhere in this repository.
 
 ## Commands
@@ -45,3 +46,5 @@ deliverables of equal weight. The process is explained in
 - `go test ./...` runs every test.
 - `go run ./cmd/census` is the gate for protected tests. Green means every protected test exists, ran, passed and
   is unchanged. Red lists every reason. Run it before every commit.
+- `go test -run='^$' -bench=. -benchmem ./...` runs the benchmarks (task 59). Commit a prediction before reading
+  them (rule 7), and compare like with like: figures from different machines are not comparable.
