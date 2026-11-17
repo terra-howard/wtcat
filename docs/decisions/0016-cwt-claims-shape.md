@@ -1,6 +1,6 @@
 # 0016. Giving `cwt.Claims` the shape RFC 8392 allows
 
-- **Status:** accepted, 2026-11-14 (proposed the same day): option A. Applied by the owner in commit `5cfec67`
+- **Status:** accepted, 2026-11-14 (proposed the same day): option A. Applied by the owner in commit `fcf5683`
 - **Decided by:** Claude, under Terra Howard's delegation, widened the same evening to forks first set aside for her;
   pending her review. The protected-test edit itself remains hers (AGENTS.md rule 1, decision 0003).
 
@@ -53,7 +53,7 @@ A. An agent may not edit protected tests, so the change is prepared as one patch
 directory, covering `cwt`, the protected tests and the manifest's new hash. It was checked in a scratch copy of the
 repository: it applies cleanly, the census is green after it, and every other test passes. The owner applies it
 with `git apply docs/decisions/0016-claims-shape.patch` and commits it citing this decision. The patch was made
-against commit `d95131e`; if later commits touch the same lines in `cwt`, it may need regenerating, which an agent
+against commit `c2cb427`; if later commits touch the same lines in `cwt`, it may need regenerating, which an agent
 can do without touching the protected files in the repository. The protected tests' expected values are
 unchanged: only the way they read `aud` and the dates changes. Until then, the README
 lists the `aud` defect, which is option D's holding position.
@@ -67,7 +67,7 @@ command, not a description of one.
 
 ## Applied, 2026-11-14
 
-The owner applied the patch and committed it as `5cfec67`. On that commit every test passed and the census was green
+The owner applied the patch and committed it as `fcf5683`. On that commit every test passed and the census was green
 with the protected file's new hash. The patch file was then removed, since the commit is the record and the patch
-would no longer apply; it stays in the history at the commit before `5cfec67`.
+would no longer apply; it stays in the history at the commit before `fcf5683`.
 

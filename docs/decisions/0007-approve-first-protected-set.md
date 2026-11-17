@@ -24,7 +24,7 @@ satisfied by a degenerate implementation, and the set is small enough to stay st
 
 ## Decision
 
-Approve `conformance/rfc8392_test.go` and `conformance/MANIFEST` as written in commit `2a0c59f`.
+Approve `conformance/rfc8392_test.go` and `conformance/MANIFEST` as written in commit `9899847`.
 
 ## If a protected test turns out to be wrong
 
