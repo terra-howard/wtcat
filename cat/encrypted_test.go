@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"errors"
+	"math"
 	"net/netip"
 	"testing"
 
@@ -19,7 +20,12 @@ var encKey = []byte("0123456789abcdef") // a 128-bit test key
 // encrypt0 encrypts plaintext as a tagged COSE_Encrypt0 with A128GCM under encKey (decision 0030).
 func encrypt0(t *testing.T, plaintext []byte) string {
 	t.Helper()
-	protected := enc(t, map[int64]any{1: 1})
+	return encrypt0With(t, enc(t, map[int64]any{1: 1}), plaintext)
+}
+
+// encrypt0With is encrypt0 with the protected header bytes given exactly.
+func encrypt0With(t *testing.T, protected, plaintext []byte) string {
+	t.Helper()
 	iv := []byte("twelve-bytes")
 	block, err := aes.NewCipher(encKey)
 	if err != nil {
@@ -166,5 +172,91 @@ func TestEncryptedTokensAreNotRenewed(t *testing.T) {
 	r, err := v.Renew(tok, testNow)
 	if r != nil || err != nil {
 		t.Fatalf("Renew = %v, %v; want no renewal", r, err)
+	}
+}
+
+// TestEncryptedProtectedHeaderDeterministic checks that an encrypted token's protected header must be
+// deterministically encoded, like a signed one's: here {1: 1} with the key 1 in a two-byte form.
+func TestEncryptedProtectedHeaderDeterministic(t *testing.T) {
+	token := encrypt0With(t, []byte{0xa1, 0x18, 0x01, 0x01}, enc(t, map[any]any{1: "issuer"}))
+	if _, err := decrypting(validator(), "issuer").Validate(token); !errors.Is(err, cwt.ErrMalformed) {
+		t.Fatalf("got %v, want malformed", err)
+	}
+}
+
+// TestEncryptedLimitsExactly checks the edges of the limits encryption lifts (decision 0030).
+func TestEncryptedLimitsExactly(t *testing.T) {
+	v := decrypting(validator(), "issuer")
+	twelve := encrypt0(t, enc(t, map[any]any{1: "issuer", 282: "u4pruydqqvj0"}))
+	if _, err := v.ValidateRequest(twelve, atPoint(57.64911, 10.40744)); errors.Is(err, cwt.ErrMalformed) {
+		t.Fatalf("a twelve-character geohash was refused as malformed: %v", err)
+	}
+
+	one := map[any]any{1: "issuer", 311: []any{cbor.Tag{Number: 52, Content: []byte{192, 0, 2, 1}}}}
+	neighbour := get()
+	neighbour.ClientIP = netip.MustParseAddr("192.0.2.2")
+	if _, err := v.ValidateRequest(encrypt0(t, enc(t, one)), neighbour); !errors.Is(err, cat.ErrUnacceptable) {
+		t.Fatalf("an address names one host, so its neighbour must be refused: %v", err)
+	}
+	v6 := map[any]any{1: "issuer", 311: []any{cbor.Tag{Number: 54, Content: netip.MustParseAddr("2001:db8::1").AsSlice()}}}
+	req := get()
+	req.ClientIP = netip.MustParseAddr("2001:db8::1")
+	if _, err := v.ValidateRequest(encrypt0(t, enc(t, v6)), req); err != nil {
+		t.Fatalf("an encrypted IPv6 address: %v", err)
+	}
+	short := map[any]any{1: "issuer", 311: []any{cbor.Tag{Number: 52, Content: []byte{192, 0, 2}}}}
+	if _, err := v.ValidateRequest(encrypt0(t, enc(t, short)), req); !errors.Is(err, cwt.ErrMalformed) {
+		t.Fatalf("a three-byte IPv4 address: %v", err)
+	}
+	text := map[any]any{1: "issuer", 311: []any{cbor.Tag{Number: 52, Content: "abcd"}}} // four bytes, as text
+	if _, err := v.ValidateRequest(encrypt0(t, enc(t, text)), req); !errors.Is(err, cwt.ErrMalformed) {
+		t.Fatalf("an address as text: %v", err)
+	}
+}
+
+// TestCatgeocoordEdges checks catgeocoord's numbers at their edges (decision 0030).
+func TestCatgeocoordEdges(t *testing.T) {
+	v := decrypting(validator(), "issuer")
+	token := func(loc ...any) string {
+		return encrypt0(t, enc(t, map[any]any{1: "issuer", 317: []any{loc}}))
+	}
+	cases := []struct {
+		name  string
+		token string
+		req   *cat.Request
+		want  error
+	}{
+		{"a radius of zero at the centre itself", token(48.86, 2.35, 0), atPoint(48.86, 2.35), nil},
+		{"integer coordinates", token(48, 2, 1000), atPoint(48, 2), nil},
+		{"integer coordinates, outside", token(48, 2, 1000), atPoint(48.5, 2), cat.ErrLocation},
+		{"a centre at the north pole", token(90, 0, 1000), atPoint(89.999, 0), nil},
+		{"a centre at the south-west corner", token(-90, -180, 1000), atPoint(-89.999, -180), nil},
+		{"a centre on the antimeridian", token(0, 180, 1000), atPoint(0, 179.999), nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := v.ValidateRequest(tc.token, tc.req)
+			if tc.want == nil {
+				if err != nil {
+					t.Fatalf("ValidateRequest: %v", err)
+				}
+				return
+			}
+			wantKind(t, err, tc.want)
+		})
+	}
+	for name, loc := range map[string][]any{
+		"a latitude below -90":   {-90.5, 0, 1},
+		"a longitude above 180":  {0, 180.5, 1},
+		"a longitude below -180": {0, -180.5, 1},
+		"a latitude that is NaN": {math.NaN(), 0, 1},
+		"an infinite longitude":  {0, math.Inf(1), 1},
+		"a latitude too big":     {uint64(1) << 63, 0, 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := v.ValidateRequest(token(loc...), atPoint(0, 0)); !errors.Is(err, cwt.ErrMalformed) {
+				t.Fatalf("got %v, want malformed", err)
+			}
+		})
 	}
 }

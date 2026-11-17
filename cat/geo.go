@@ -164,10 +164,10 @@ func encodeGeohash(lat, lon float64, n int) string {
 	return string(out)
 }
 
-// coordinatesOK reports whether a Location's coordinates are a position: finite, latitude in [-90, 90) and longitude
-// in [-180, 180).
+// coordinatesOK reports whether a Location's coordinates are a position: latitude in [-90, 90) and longitude in
+// [-180, 180). NaN needs no test of its own, since every comparison with it is false.
 func coordinatesOK(c *Coordinates) bool {
-	return !math.IsNaN(c.Latitude) && !math.IsNaN(c.Longitude) && c.Latitude >= -90 && c.Latitude < 90 && c.Longitude >= -180 && c.Longitude < 180
+	return c.Latitude >= -90 && c.Latitude < 90 && c.Longitude >= -180 && c.Longitude < 180
 }
 
 // checkGeohash enforces geohash when the caller supplies coordinates; without them the claim is ignored. A point

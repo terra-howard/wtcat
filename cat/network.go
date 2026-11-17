@@ -78,8 +78,8 @@ func decodePrefix(item cbor.RawMessage, encrypted bool) (netip.Prefix, error) {
 		if !encrypted {
 			return netip.Prefix{}, malformed("claim 311 (catnip) names a full address, which section 4.6.9 requires to be encrypted")
 		}
-		var b []byte
-		if majorType(content) != majorBytes || decMode.Unmarshal(content, &b) != nil || len(b) != size {
+		var b []byte // decoding into a byte slice refuses any other type
+		if decMode.Unmarshal(content, &b) != nil || len(b) != size {
 			return netip.Prefix{}, malformed("claim 311 (catnip): an address is a byte string of %d bytes", size)
 		}
 		addr, _ := netip.AddrFromSlice(b)
