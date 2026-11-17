@@ -25,7 +25,7 @@ import (
 var secret = []byte("0123456789abcdef0123456789abcdef")
 
 // token builds an HMAC 256/256 CAT carrying the given claims, deterministically encoded.
-func token(t *testing.T, claims map[any]any) string {
+func token(t testing.TB, claims map[any]any) string {
 	t.Helper()
 	em, err := cbor.EncOptions{ShortestFloat: cbor.ShortestFloat16}.EncMode()
 	if err != nil {
@@ -343,5 +343,22 @@ func TestAuthorizeLocation(t *testing.T) {
 	a.Location = func(*http.Request) *cat.Location { return &cat.Location{Country: "CA", Region: "ON"} }
 	if _, err := a.Authorize(r); err != nil {
 		t.Fatalf("from Ontario: %v", err)
+	}
+}
+
+// BenchmarkMiddleware measures one request through the middleware with an acceptable HMAC token in the token
+// field, including the handler call and the response recorder (task 59).
+func BenchmarkMiddleware(b *testing.B) {
+	h := authorizer().Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	tok := token(b, map[any]any{4: future})
+	b.ReportAllocs()
+	for b.Loop() {
+		r := httptest.NewRequest(http.MethodGet, "https://cdn.example/a/b.ts", nil)
+		r.Header.Set("CTA-Common-Access-Token", `"`+tok+`"`)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != http.StatusOK {
+			b.Fatalf("status %d", w.Code)
+		}
 	}
 }
