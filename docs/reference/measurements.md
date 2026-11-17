@@ -184,4 +184,4 @@ Same command as task 11, on `./cat` and then `./cwt`.
 - the simple-value guard in dates, where the decoder's own error gives the same kind.
 
 **The 28 not covered** are `switch` case expressions, the coverage artifact task 11 found.
-
+| 63. The geohash claim, decision 0027: decoding with its syntax and tag rules, an encoder, enforcement against `Location` coordinates, tests against published geohash values from outside CTA and property tests (prediction committed before any code) | 1 | 45 min | every new test passes on its first compiled run, about 55%; the published values match on the first compiled run, about 85%; the existing suite and the census stay green, about 95% | | | |

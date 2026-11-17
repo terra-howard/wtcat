@@ -38,7 +38,7 @@ too: it carries no permissive licence at all).
   interpreting EPSG numbers and WKT for no gain.
 - **The caller supplies coordinates, not a geohash.** Geolocation databases give latitude and longitude. The
   package encodes the point at each listed geohash's length and compares, as 8.4 describes. `Location` gains
-  `Latitude` and `Longitude` with a flag saying whether they are known.
+  `Coordinates`, a latitude and longitude, nil when they are not known.
 - **Who can't locate, and who failed to.** This follows decision 0021's rule for `catgeoiso3166`. A nil
   `Location`, or one whose coordinates are not known, means the recipient does not locate clients by coordinates,
   and the claim is ignored. A `Location` with known coordinates that are out of range or not finite is a failed
