@@ -24,8 +24,8 @@ asks. [The tutorial](docs/tutorials/protect-a-server.md) builds this end to end 
   `catu` is checked, and wraps a handler: refusals, `Cache-Control: private`, renewals, and token-bearing fields
   removed before forwarding.
 
-The `cat` package documentation lists exactly which claims are enforced and which are ignored. Encrypted tokens and
-messages with several signers are not supported; [the design explanation](docs/explanation/design.md) says why, and
+The `cat` package documentation lists exactly which claims are enforced and which are ignored. Encrypted tokens are not
+supported; [the design explanation](docs/explanation/design.md) says why, and
 what else is left out.
 
 ## Status
