@@ -36,6 +36,7 @@ type Claims struct {
 	alpns      [][]byte         // catalpn (314)
 	headers    []headerMatch    // cath (315)
 	countries  []string         // catgeoiso3166 (316)
+	geohashes  []string         // geohash (282), lower case; empty but not nil for an empty array
 	tpk        []byte           // cattpk (319)
 	dpopWindow *uint64          // catdpop (321): its window setting, in seconds
 	catif      cbor.RawMessage  // catif (322) as received, parsed only for a response to a refusal
@@ -64,6 +65,7 @@ const (
 	claimIat           = 6
 	claimCti           = 7
 	claimCnf           = 8
+	claimGeohash       = 282
 	claimCatreplay     = 308
 	claimCatv          = 310
 	claimCatnip        = 311
@@ -161,7 +163,7 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	switch key {
 	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCnf, claimCatreplay, claimCatv,
 		claimCatnip, claimCatu, claimCatm, claimCatalpn, claimCath, claimCatgeoiso3166, claimCattpk, claimCatdpop,
-		claimCatif, claimCatr:
+		claimCatif, claimCatr, claimGeohash:
 	default:
 		return nil // a claim this package does not know, or catifdata, which only means something in a minted token
 	}
@@ -208,6 +210,8 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 		c.tpk, err = decodeTPK(value)
 	case claimCatgeoiso3166:
 		c.countries, err = decodeCountries(value)
+	case claimGeohash:
+		c.geohashes, err = decodeGeohashes(value)
 	case claimCatreplay:
 		if majorType(value) != majorUnsigned {
 			return malformed("claim 308 (catreplay) is not an unsigned integer")
