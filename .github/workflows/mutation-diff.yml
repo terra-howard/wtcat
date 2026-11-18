@@ -1,0 +1,56 @@
+# Mutation testing of what a pull request changes, decision 0034. Gremlins mutates only the lines that differ from the
+# base branch, so a gap in the new tests shows on the pull request instead of after merge. The full runs per package
+# stay in mutation.yml. Actions are pinned as in ci.yml.
+name: mutation-diff
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  changed-code:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # --diff needs the base branch's history
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # Decision 0028: test-cpu makes Gremlins v0.6.0 count every mutant killed. A diff run can rightly have no
+      # survivors, so the vacuous-run check of the full runs cannot apply here; refuse the cause instead.
+      - name: Refuse test-cpu in any Gremlins config
+        run: |
+          if grep -n 'test-cpu' .github/gremlins/*.yaml; then
+            echo "::error::test-cpu is set in a Gremlins config; Gremlins v0.6.0 then counts every mutant killed (decision 0028)."
+            exit 1
+          fi
+      - name: Gremlins on the changed code
+        # Decision 0034: a mutant can turn a loop into one that never ends and keeps allocating; capping each
+        # process's address space at 4 GiB makes it crash, and so count as killed, instead of starving the runner.
+        run: |
+          ulimit -v 4194304
+          go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash --config .github/gremlins/diff.yaml --diff "origin/${{ github.base_ref }}" -o gremlins.json .
+      # Every surviving mutant is annotated on its line. Ten or more mutants are judged against the lowest package
+      # threshold, 92.5%; fewer are reported but not judged, since one equivalent mutant would decide the result.
+      - name: Judge the result
+        run: |
+          killed=$(jq .mutants_killed gremlins.json)
+          lived=$(jq .mutants_lived gremlins.json)
+          echo "killed $killed, lived $lived"
+          jq -r '.files[] | .file_name as $f | .mutations[] | select(.status == "LIVED") | "\($f) \(.line) \(.type)"' gremlins.json |
+            while read -r file line type; do
+              echo "::warning file=$file,line=$line::$type mutant lived: no test notices this change (decision 0034)"
+            done
+          total=$((killed + lived))
+          if [ "$total" -lt 10 ]; then
+            echo "Only $total mutants in the changed code, too few to judge; survivors, if any, are annotated above."
+            exit 0
+          fi
+          if [ $((killed * 1000)) -lt $((total * 925)) ]; then
+            echo "::error::Efficacy on the changed code is below 92.5% ($killed of $total killed); see the annotated survivors (decision 0034)."
+            exit 1
+          fi
