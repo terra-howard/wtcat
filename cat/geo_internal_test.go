@@ -85,3 +85,35 @@ func TestEncodeGeohashEdges(t *testing.T) {
 		t.Errorf("origin: %q", got)
 	}
 }
+
+// TestDistance checks the haversine distance against two things outside it: the arc of one degree on the equator,
+// which is the sphere's radius times pi/180, and the spherical law of cosines, an independent formula for the same
+// great-circle distance.
+func TestDistance(t *testing.T) {
+	if got, want := distance(0, 0, 0, 1), earthRadius*math.Pi/180; math.Abs(got-want) > 1e-6 {
+		t.Fatalf("one degree on the equator: %v, want %v", got, want)
+	}
+	if got, want := distance(0, 0, 1, 0), earthRadius*math.Pi/180; math.Abs(got-want) > 1e-6 {
+		t.Fatalf("one degree of latitude: %v, want %v", got, want)
+	}
+	cosines := func(lat1, lon1, lat2, lon2 float64) float64 {
+		r := math.Pi / 180
+		c := math.Sin(lat1*r)*math.Sin(lat2*r) + math.Cos(lat1*r)*math.Cos(lat2*r)*math.Cos((lon2-lon1)*r)
+		return earthRadius * math.Acos(math.Max(-1, math.Min(1, c)))
+	}
+	for _, p := range [][4]float64{
+		{48.8566, 2.3522, 51.5074, -0.1278},
+		{-33.8688, 151.2093, 35.6762, 139.6503},
+		{40.7128, -74.0060, -22.9068, -43.1729},
+		{10, 20, 30, 40},
+		{-45, 170, 45, -170},
+	} {
+		got, want := distance(p[0], p[1], p[2], p[3]), cosines(p[0], p[1], p[2], p[3])
+		if math.Abs(got-want) > 1e-6*want {
+			t.Errorf("distance(%v) = %v, law of cosines gives %v", p, got, want)
+		}
+		if back := distance(p[2], p[3], p[0], p[1]); math.Abs(back-got) > 1e-9*got {
+			t.Errorf("distance(%v) is not symmetric: %v and %v", p, got, back)
+		}
+	}
+}

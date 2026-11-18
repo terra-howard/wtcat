@@ -19,7 +19,7 @@ func v4(length int, b []byte) cbor.Tag { return cbor.Tag{Number: 52, Content: []
 func v6(length int, b []byte) cbor.Tag { return cbor.Tag{Number: 54, Content: []any{length, b}} }
 
 func TestDecodeCatnip(t *testing.T) {
-	nets, err := decodeCatnip(catnipOf(t, uint64(64500), v4(24, []byte{192, 0, 2}), v6(48, []byte{0x20, 0x01, 0x0d, 0xb8}), v4(0, []byte{})))
+	nets, err := decodeCatnip(catnipOf(t, uint64(64500), v4(24, []byte{192, 0, 2}), v6(48, []byte{0x20, 0x01, 0x0d, 0xb8}), v4(0, []byte{})), false)
 	if err != nil {
 		t.Fatalf("decodeCatnip: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestDecodeCatnipRefuses(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := decodeCatnip(tc.value); !errors.Is(err, cwt.ErrMalformed) {
+			if _, err := decodeCatnip(tc.value, false); !errors.Is(err, cwt.ErrMalformed) {
 				t.Fatalf("got %v, want an error wrapping cwt.ErrMalformed", err)
 			}
 		})
@@ -75,7 +75,7 @@ func TestDecodeCatnipRefuses(t *testing.T) {
 }
 
 func TestCatnipMatches(t *testing.T) {
-	nets, err := decodeCatnip(catnipOf(t, uint64(64500), v4(24, []byte{192, 0, 2}), v6(32, []byte{0x20, 0x01, 0x0d, 0xb8})))
+	nets, err := decodeCatnip(catnipOf(t, uint64(64500), v4(24, []byte{192, 0, 2}), v6(32, []byte{0x20, 0x01, 0x0d, 0xb8})), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestCatnipMatches(t *testing.T) {
 			t.Errorf("%s: catnipMatches = %v, want %v", tc.name, got, tc.want)
 		}
 	}
-	asnZero, err := decodeCatnip(catnipOf(t, uint64(0)))
+	asnZero, err := decodeCatnip(catnipOf(t, uint64(0)), false)
 	if err != nil {
 		t.Fatal(err)
 	}

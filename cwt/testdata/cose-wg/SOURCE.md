@@ -9,3 +9,5 @@ commit.
 Why they are here: decision [0009](../../../docs/decisions/0009-cose-wg-vectors.md). `sign-tests/`, `mac-tests/`,
 `hmac-examples/HMac-05.json` and `RFC8152/Appendix_C_1_1.json` and `Appendix_C_1_2.json` were added from the same
 commit on 2026-11-17, for decision [0029](../../../docs/decisions/0029-several-signers-or-recipients.md).
+`encrypted-tests/` and `aes-gcm-examples/aes-gcm-enc-0*.json` were added from the same commit on 2026-11-17, for
+decision [0030](../../../docs/decisions/0030-encrypted-tokens.md).
