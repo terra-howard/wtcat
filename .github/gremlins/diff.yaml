@@ -1,0 +1,12 @@
+# Gremlins settings for the pull-request run, used by .github/workflows/mutation-diff.yml (decision 0034). Only code
+# the pull request changes is mutated. No thresholds here: the workflow judges the result, since a small diff gives too
+# few mutants for an efficacy threshold to mean anything. Never set test-cpu (decision 0028).
+unleash:
+  integration: true
+  timeout-coefficient: 10
+  workers: 2
+mutants:
+  invert-logical:
+    enabled: true
+  invert-loopctrl:
+    enabled: true
