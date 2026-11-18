@@ -100,10 +100,12 @@ func (v *Validator) revalidation(r float64) (time.Duration, error) {
 	if r == 0 {
 		return 0, nil
 	}
-	if r*float64(time.Second) >= math.MaxInt64 {
-		return 0, unsupported("moqt-reval of %g seconds is too long to represent", r)
+	// An interval longer than a Duration can hold, about 292 years, never asks for revalidation sooner than that, so
+	// it is clamped rather than converted, which would overflow.
+	d := time.Duration(math.MaxInt64)
+	if r*float64(time.Second) < math.MaxInt64 {
+		d = time.Duration(r * float64(time.Second))
 	}
-	d := time.Duration(r * float64(time.Second))
 	if v.MinRevalidation == 0 {
 		return 0, unsupported("moqt-reval asks for revalidation every %v, and this recipient does not revalidate", d)
 	}

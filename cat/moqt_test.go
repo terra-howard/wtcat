@@ -199,6 +199,8 @@ func TestMOQTRevalidation(t *testing.T) {
 		{"exactly the recipient's minimum", 60, 60 * time.Second, moqtRequest(4, nil, nil), 60 * time.Second, nil},
 		{"a fractional interval", 1.5, time.Second, moqtRequest(4, nil, nil), 1500 * time.Millisecond, nil},
 		{"zero means no revalidation", 0, 0, moqtRequest(4, nil, nil), 0, nil},
+		{"longer than a Duration holds is clamped", uint64(10_000_000_000), time.Second, moqtRequest(4, nil, nil), time.Duration(math.MaxInt64), nil},
+		{"exactly at the limit is clamped", float64(math.MaxInt64) / 1e9, time.Second, moqtRequest(4, nil, nil), time.Duration(math.MaxInt64), nil},
 		{"shorter than the recipient can honour", 30, 60 * time.Second, moqtRequest(4, nil, nil), 0, cwt.ErrUnsupported},
 		{"a recipient that does not revalidate", 300, 0, moqtRequest(4, nil, nil), 0, cwt.ErrUnsupported},
 		{"the same rule over HTTP", 300, 0, get(), 0, cwt.ErrUnsupported},

@@ -32,7 +32,8 @@ claim belongs in the base claim set only.
   is just as unable to revalidate, so the rule does not depend on the request kind.
 - **The value.** A non-negative number, integer or floating point, finite, with fractions of a second kept. A
   negative, NaN or infinite value, or one of another type, is malformed. Zero means no revalidation, as the draft
-  says.
+  says. An interval longer than a Go `time.Duration` can hold, about 292 years, is clamped to the longest one,
+  since it never asks for revalidation sooner than that. Converting it would overflow.
 - **Skipping checks is left to callers.** The draft allows skipping the signature on revalidation. Here every
   revalidation is a full validation, which costs microseconds (task 59), and avoids a cached state that could go
   stale.
