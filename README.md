@@ -63,5 +63,6 @@ Organized by [Diátaxis](https://diataxis.fr/):
 - **Explanation:** [why the validator is built the way it is](docs/explanation/design.md), and
   [how work happens here, and why](docs/explanation/process.md).
 - **Decisions:** [one record per decision](docs/decisions/), proposed or accepted.
+- **Roadmap:** [what is planned next](ROADMAP.md), starting with CAT for Media over QUIC Transport.
 
 Licensed under the Apache License 2.0.
