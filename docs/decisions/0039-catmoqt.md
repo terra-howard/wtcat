@@ -61,6 +61,13 @@ library yet carries draft-ietf-moq-c4m's tokens?
 - **Revalidation stays with the relay,** as decision 0036 has it. A grant reports the token's `moqt-reval` interval
   and can check the same token against the same action again; the relay runs the timer, and on a failure ends the
   subscription (PUBLISH_DONE UNAUTHORIZED, or a stream reset with EXPIRED_AUTH_TOKEN).
+- **Revalidating a DPoP-bound token judges the token, not the proof again.** A proof covers one action and stays
+  fresh for its window, about a minute by default, while a subscription can last hours, and no message of an
+  ongoing subscription brings a new proof. Neither draft says what revalidation means for such a token. Checking
+  the proof again would end every DPoP-bound subscription at its first revalidation, so a revalidation sets
+  `cat.MOQTAction.Revalidating`, and `cat` then judges the token in full but demands no proof and records no proof
+  `cti`. The token's binding to the key was proven when the action started. Found by reading the code after task
+  78's tests passed (task 78b); the question goes to the c4m authors.
 - **The DPoP proof is the caller's input.** draft-ietf-moq-c4m does not yet say how a proof travels with an action
   (raised in the c4m report), so the caller passes it with the request.
 - **The client's side is out of scope.** The package judges tokens a relay receives. Registering aliases as a

@@ -188,6 +188,12 @@ func TestTokenCache(t *testing.T) {
 		check(t, s, subscribe(deleteAlias(1), register(2, catmoqt.TokenTypeCAT, good)), granted)
 		check(t, s, subscribe(useAlias(2)), granted)
 	})
+	t.Run("a limit lowered below what is held", func(t *testing.T) {
+		s := session()
+		check(t, s, subscribe(register(1, catmoqt.TokenTypeCAT, good)), granted)
+		s.MaxCacheSize = 1
+		check(t, s, subscribe(register(2, catmoqt.TokenTypeCAT, good)), overflow)
+	})
 	t.Run("the default limit of 0 allows no alias", func(t *testing.T) {
 		s := session()
 		s.MaxCacheSize = 0
@@ -409,7 +415,7 @@ func TestDPoPThroughASession(t *testing.T) {
 		t.Fatal(err)
 	}
 	ckt := sha256.Sum256(encKey)
-	tok := token(t, map[any]any{8: map[any]any{5: ckt[:]}})
+	tok := token(t, map[any]any{8: map[any]any{5: ckt[:]}, 321: map[any]any{1: 1}}) // catdpop asks for replay detection
 	const actxKey, athKey = -70001, -70002
 	ath := sha256.Sum256(tok)
 	protected, _ := cbor.Marshal(map[int64]any{1: -7, 16: "dpop-proof+cwt", 14: map[int64]any{8: map[int64]any{1: coseKey}}})
@@ -428,10 +434,26 @@ func TestDPoPThroughASession(t *testing.T) {
 
 	s := session()
 	s.Validator.ActxKey, s.Validator.AthKey = actxKey, athKey
+	now := testNow
+	s.Validator.Now = func() time.Time { return now }
+	replays := 0
+	s.Validator.ProofReplay = func([]byte, time.Time) bool { replays++; return replays > 1 }
 	req := subscribe(useValue(1, tok))
 	check(t, s, req, unauthorized)
 	req.Proof = proof
-	check(t, s, req, granted)
+	g := check(t, s, req, granted)
+
+	// Revalidating judges the token, not the proof again: the proof's window has passed and its cti has been seen,
+	// and the grant still holds (decision 0039).
+	now = testNow.Add(10 * time.Minute)
+	if err := g.Recheck(); err != nil {
+		t.Fatalf("Recheck after the proof's window: %v", err)
+	}
+	if replays != 1 {
+		t.Fatalf("ProofReplay called %d times, want once, for the request and not for Recheck", replays)
+	}
+	// The proof itself is still checked for a new request.
+	check(t, s, req, unauthorized)
 }
 
 // TestConcurrentSession registers and uses aliases from many goroutines at once. Run with -race.

@@ -61,7 +61,11 @@ type Grant struct {
 // request started: for a subscription, PUBLISH_DONE with UNAUTHORIZED, or a stream reset with EXPIRED_AUTH_TOKEN
 // when errors.Is(err, cat.ErrExpired).
 func (g *Grant) Recheck() error {
-	_, err := g.validator.ValidateRequest(g.text, &g.req)
+	req := g.req
+	again := *req.MOQT
+	again.Revalidating = true // the token is judged again, not the proof that came with the request (decision 0039)
+	req.MOQT = &again
+	_, err := g.validator.ValidateRequest(g.text, &req)
 	return err
 }
 
@@ -155,7 +159,7 @@ func (s *Session) resolve(raw [][]byte, setup bool) ([]Token, error) {
 			}
 			need := entrySize + uint64(len(t.token.Value))
 			switch {
-			case need <= s.MaxCacheSize-s.size:
+			case s.size <= s.MaxCacheSize && need <= s.MaxCacheSize-s.size: // the first, should the limit be lowered
 				s.cache[t.alias] = Token{Type: t.token.Type, Value: slices.Clone(t.token.Value)}
 				s.size += need
 			case !setup:

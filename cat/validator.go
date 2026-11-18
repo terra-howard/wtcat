@@ -292,9 +292,11 @@ func (v *Validator) accept(claims *Claims, issuer string, req *Request, token st
 	var proofCTI []byte
 	var proofUntil time.Time
 	if req != nil && req.MOQT != nil {
-		var err error
-		if proofCTI, proofUntil, err = v.checkMOQTProof(claims, req, token, t); err != nil {
-			return err
+		if !req.MOQT.Revalidating { // a revalidation demands no new proof (decision 0039)
+			var err error
+			if proofCTI, proofUntil, err = v.checkMOQTProof(claims, req, token, t); err != nil {
+				return err
+			}
 		}
 	} else if err := v.checkConfirmation(claims, req, token, t); err != nil {
 		return err
