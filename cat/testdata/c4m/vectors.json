@@ -149,5 +149,362 @@
       "cose_b64": "0oRIogEmEGNDQVSgWEmkAXgYaHR0cHM6Ly9hdXRoLmV4YW1wbGUuY29tA4F4HWh0dHBzOi8vbW9xLXJlbGF5LmV4YW1wbGUuY29tBBplVUKABRplU_EAWEDtjPWG8yukEPKzCXZC6zIlXI3FVengWMSAhICd9VeIe8XuSXSp71xFV8FVfeeZYotjTK-qG3TJNpaODJw6SPIi",
       "valid": true
     }
+  ],
+  "moqt_authorization_scopes": [
+    {
+      "id": "moqt_publisher_exact",
+      "description": "Publisher scope: exact namespace match, prefix track match",
+      "claims_edn": "{1 /iss/: \"https://auth.example.com\", 4 /exp/: 1700086400,-65537 /moqt/: {0: [[[2, 6], [h'6578616d706c652e636f6d',h'616c696365'], [1, h'766964656f2d']]]}}",
+      "moqt_scopes": [
+        {
+          "actions": [
+            2,
+            6
+          ],
+          "action_names": [
+            "PublishNamespace",
+            "Publish"
+          ],
+          "namespace_matches": [
+            {
+              "type": "exact",
+              "pattern_utf8": "example.com",
+              "pattern_hex": "6578616d706c652e636f6d"
+            },
+            {
+              "type": "exact",
+              "pattern_utf8": "alice",
+              "pattern_hex": "616c696365"
+            }
+          ],
+          "track_match": {
+            "type": "prefix",
+            "pattern_utf8": "video-",
+            "pattern_hex": "766964656f2d"
+          }
+        }
+      ],
+      "payload_cbor_hex": "a301781868747470733a2f2f617574682e6578616d706c652e636f6d041a655542803a00010000a1008183820206824b6578616d706c652e636f6d45616c696365820146766964656f2d",
+      "cose_hex": "d18448a201051063434154a0584aa301781868747470733a2f2f617574682e6578616d706c652e636f6d041a655542803a00010000a1008183820206824b6578616d706c652e636f6d45616c696365820146766964656f2d5820467c57ade72d6be629b745ef33d6e28ec38ba1ca8bd3feb851f3832af94fe686",
+      "cose_b64": "0YRIogEFEGNDQVSgWEqjAXgYaHR0cHM6Ly9hdXRoLmV4YW1wbGUuY29tBBplVUKAOgABAAChAIGDggIGgktleGFtcGxlLmNvbUVhbGljZYIBRnZpZGVvLVggRnxXrecta-Ypt0XvM9bijsOLocqL0_64UfODKvlP5oY",
+      "authorization_tests": [
+        {
+          "action": 2,
+          "namespace": [
+            "example.com",
+            "alice"
+          ],
+          "track": "video-hd",
+          "expected": true
+        },
+        {
+          "action": 6,
+          "namespace": [
+            "example.com",
+            "alice"
+          ],
+          "track": "video-sd",
+          "expected": true
+        },
+        {
+          "action": 6,
+          "namespace": [
+            "example.com",
+            "alice"
+          ],
+          "track": "audio-main",
+          "expected": false
+        },
+        {
+          "action": 4,
+          "namespace": [
+            "example.com",
+            "alice"
+          ],
+          "track": "video-hd",
+          "expected": false
+        },
+        {
+          "action": 6,
+          "namespace": [
+            "example.com",
+            "bob"
+          ],
+          "track": "video-hd",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "id": "moqt_subscriber_prefix",
+      "description": "Subscriber scope: prefix namespace match, any track",
+      "claims_edn": "{1 /iss/: \"https://auth.example.com\", 4 /exp/: 1700086400,-65537 /moqt/: {0: [[[3, 4, 7], [[1,h'636f6e666572656e63652e6578616d706c65']]]]}}",
+      "moqt_scopes": [
+        {
+          "actions": [
+            3,
+            4,
+            7
+          ],
+          "action_names": [
+            "SubscribeNamespace",
+            "Subscribe",
+            "Fetch"
+          ],
+          "namespace_matches": [
+            {
+              "type": "prefix",
+              "pattern_utf8": "conference.example",
+              "pattern_hex": "636f6e666572656e63652e6578616d706c65"
+            }
+          ],
+          "track_match": null
+        }
+      ],
+      "payload_cbor_hex": "a301781868747470733a2f2f617574682e6578616d706c652e636f6d041a655542803a00010000a10081828303040781820152636f6e666572656e63652e6578616d706c65",
+      "cose_hex": "d18448a201051063434154a05845a301781868747470733a2f2f617574682e6578616d706c652e636f6d041a655542803a00010000a10081828303040781820152636f6e666572656e63652e6578616d706c655820e0502202b8c01d5ab61508cd19b7dd943b287be0f26c3d37c12e583ca87a937b",
+      "cose_b64": "0YRIogEFEGNDQVSgWEWjAXgYaHR0cHM6Ly9hdXRoLmV4YW1wbGUuY29tBBplVUKAOgABAAChAIGCgwMEB4GCAVJjb25mZXJlbmNlLmV4YW1wbGVYIOBQIgK4wB1athUIzRm33ZQ7KHvg8mw9N8EuWDyoepN7",
+      "authorization_tests": [
+        {
+          "action": 4,
+          "namespace": [
+            "conference.example.room1"
+          ],
+          "track": "audio",
+          "expected": true
+        },
+        {
+          "action": 7,
+          "namespace": [
+            "conference.example.room2"
+          ],
+          "track": "video",
+          "expected": true
+        },
+        {
+          "action": 4,
+          "namespace": [
+            "other.domain"
+          ],
+          "track": "audio",
+          "expected": false
+        },
+        {
+          "action": 6,
+          "namespace": [
+            "conference.example.room1"
+          ],
+          "track": "audio",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "id": "moqt_multi_scope",
+      "description": "Multi-scope token: publish to specific namespace, subscribeto prefix, with revalidation",
+      "claims_edn": "{1 /iss/: \"https://auth.example.com\", 4 /exp/: 1700086400,-65537 /moqt/: {0: [[[2, 6], [h'6c6976652e6578616d706c65',h'73747564696f2d61']], [[4, 7], [[1,h'6c6976652e6578616d706c65']]]]}, -65538 /moqt-reval/: 300}",
+      "moqt_reval": 300.0,
+      "moqt_scopes": [
+        {
+          "actions": [
+            2,
+            6
+          ],
+          "action_names": [
+            "PublishNamespace",
+            "Publish"
+          ],
+          "namespace_matches": [
+            {
+              "type": "exact",
+              "pattern_utf8": "live.example",
+              "pattern_hex": "6c6976652e6578616d706c65"
+            },
+            {
+              "type": "exact",
+              "pattern_utf8": "studio-a",
+              "pattern_hex": "73747564696f2d61"
+            }
+          ],
+          "track_match": null
+        },
+        {
+          "actions": [
+            4,
+            7
+          ],
+          "action_names": [
+            "Subscribe",
+            "Fetch"
+          ],
+          "namespace_matches": [
+            {
+              "type": "prefix",
+              "pattern_utf8": "live.example",
+              "pattern_hex": "6c6976652e6578616d706c65"
+            }
+          ],
+          "track_match": null
+        }
+      ],
+      "payload_cbor_hex": "a401781868747470733a2f2f617574682e6578616d706c652e636f6d041a655542803a00010000a1008282820206824c6c6976652e6578616d706c654873747564696f2d61828204078182014c6c6976652e6578616d706c653a0001000119012c",
+      "cose_hex": "d18448a201051063434154a05861a401781868747470733a2f2f617574682e6578616d706c652e636f6d041a655542803a00010000a1008282820206824c6c6976652e6578616d706c654873747564696f2d61828204078182014c6c6976652e6578616d706c653a0001000119012c5820f1080af59a719fbcb7a036aa6f9714f52ada467b8c1677c87ade0fcfccaaf50f",
+      "cose_b64": "0YRIogEFEGNDQVSgWGGkAXgYaHR0cHM6Ly9hdXRoLmV4YW1wbGUuY29tBBplVUKAOgABAAChAIKCggIGgkxsaXZlLmV4YW1wbGVIc3R1ZGlvLWGCggQHgYIBTGxpdmUuZXhhbXBsZToAAQABGQEsWCDxCAr1mnGfvLegNqpvlxT1KtpGe4wWd8h63g_PzKr1Dw",
+      "authorization_tests": [
+        {
+          "action": 6,
+          "namespace": [
+            "live.example",
+            "studio-a"
+          ],
+          "track": "cam1",
+          "expected": true
+        },
+        {
+          "action": 4,
+          "namespace": [
+            "live.example.studio-b"
+          ],
+          "track": "cam1",
+          "expected": true
+        },
+        {
+          "action": 6,
+          "namespace": [
+            "live.example",
+            "studio-b"
+          ],
+          "track": "cam1",
+          "expected": false
+        },
+        {
+          "action": 2,
+          "namespace": [
+            "other.example",
+            "studio-a"
+          ],
+          "track": "",
+          "expected": false
+        }
+      ]
+    },
+    {
+      "id": "moqt_admin_wildcard",
+      "description": "Admin scope: all actions, no namespace/track restriction",
+      "claims_edn": "{1 /iss/: \"https://auth.example.com\", 4 /exp/: 1700086400,-65537 /moqt/: {0: [[[0, 1, 2, 3, 4, 5, 6, 7, 8]]]}}",
+      "moqt_scopes": [
+        {
+          "actions": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "action_names": [
+            "ClientSetup",
+            "ServerSetup",
+            "PublishNamespace",
+            "SubscribeNamespace",
+            "Subscribe",
+            "RequestUpdate",
+            "Publish",
+            "Fetch",
+            "TrackStatus"
+          ],
+          "namespace_matches": [],
+          "track_match": null
+        }
+      ],
+      "payload_cbor_hex": "a301781868747470733a2f2f617574682e6578616d706c652e636f6d041a655542803a00010000a100818189000102030405060708",
+      "cose_hex": "d18448a201051063434154a05835a301781868747470733a2f2f617574682e6578616d706c652e636f6d041a655542803a00010000a1008181890001020304050607085820172ebe07f227a41c319684ef916fdbf142d391fac6902e38bcdcfb3966b46a50",
+      "cose_b64": "0YRIogEFEGNDQVSgWDWjAXgYaHR0cHM6Ly9hdXRoLmV4YW1wbGUuY29tBBplVUKAOgABAAChAIGBiQABAgMEBQYHCFggFy6-B_InpBwxloTvkW_b8ULTkfrGkC44vNz7OWa0alA",
+      "authorization_tests": [
+        {
+          "action": 0,
+          "namespace": [
+            "any.namespace"
+          ],
+          "track": "any-track",
+          "expected": true
+        },
+        {
+          "action": 6,
+          "namespace": [
+            "any.namespace"
+          ],
+          "track": "any-track",
+          "expected": true
+        },
+        {
+          "action": 8,
+          "namespace": [
+            "any.namespace"
+          ],
+          "track": "status",
+          "expected": true
+        }
+      ]
+    },
+    {
+      "id": "moqt_suffix_match",
+      "description": "Suffix matching on both namespace and track",
+      "claims_edn": "{1 /iss/: \"https://auth.example.com\", 4 /exp/: 1700086400,-65537 /moqt/: {0: [[[4], [[2, h'2e6578616d706c652e636f6d']],[2, h'2d617564696f']]]}}",
+      "moqt_scopes": [
+        {
+          "actions": [
+            4
+          ],
+          "action_names": [
+            "Subscribe"
+          ],
+          "namespace_matches": [
+            {
+              "type": "suffix",
+              "pattern_utf8": ".example.com",
+              "pattern_hex": "2e6578616d706c652e636f6d"
+            }
+          ],
+          "track_match": {
+            "type": "suffix",
+            "pattern_utf8": "-audio",
+            "pattern_hex": "2d617564696f"
+          }
+        }
+      ],
+      "payload_cbor_hex": "a301781868747470733a2f2f617574682e6578616d706c652e636f6d041a655542803a00010000a100818381048182024c2e6578616d706c652e636f6d8202462d617564696f",
+      "cose_hex": "d18448a201051063434154a05846a301781868747470733a2f2f617574682e6578616d706c652e636f6d041a655542803a00010000a100818381048182024c2e6578616d706c652e636f6d8202462d617564696f5820602c1ceb2729485a2b5eb09249e254a41d42abd0b63b2846fd677d7fbf593920",
+      "cose_b64": "0YRIogEFEGNDQVSgWEajAXgYaHR0cHM6Ly9hdXRoLmV4YW1wbGUuY29tBBplVUKAOgABAAChAIGDgQSBggJMLmV4YW1wbGUuY29tggJGLWF1ZGlvWCBgLBzrJylIWitesJJJ4lSkHUKr0LY7KEb9Z31_v1k5IA",
+      "authorization_tests": [
+        {
+          "action": 4,
+          "namespace": [
+            "cdn.example.com"
+          ],
+          "track": "stream1-audio",
+          "expected": true
+        },
+        {
+          "action": 4,
+          "namespace": [
+            "cdn.example.com"
+          ],
+          "track": "stream1-video",
+          "expected": false
+        },
+        {
+          "action": 4,
+          "namespace": [
+            "cdn.other.org"
+          ],
+          "track": "stream1-audio",
+          "expected": false
+        }
+      ]
+    }
   ]
 }
