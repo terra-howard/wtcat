@@ -94,15 +94,20 @@ func (v *Validator) validate(token string, req *Request) (*Token, error) {
 	if err := checkDeterministic(data); err != nil {
 		return nil, err
 	}
-	var issuer string
+	// A message with several signers or recipients looks up a key for each (decision 0029), so the issuer is the
+	// one bound to the key that verified it, found by its kid.
+	issuers := map[string]string{}
 	msg, err := cwt.VerifyMessage(data, func(kid []byte) (cwt.Key, error) {
 		k, err := v.Keys(kid)
-		issuer = k.Issuer
+		if err == nil {
+			issuers[string(kid)] = k.Issuer
+		}
 		return k.Key, err
 	})
 	if err != nil {
 		return nil, err
 	}
+	issuer := issuers[string(msg.KID)]
 	if len(msg.Protected) > 0 {
 		if err := checkDeterministic(msg.Protected); err != nil {
 			return nil, fmt.Errorf("protected header: %w", err)
