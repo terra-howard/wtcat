@@ -38,7 +38,8 @@ deliverables of equal weight. The process is explained in
   when you add one.
 - Small commits, one task each, with a message that says what changed and why. Commits are authored by whoever
   made them: the owner's under her own identity, and an agent's under its own account (Cairn's is
-  `cairn-claude`, through its GitHub noreply address). Agent commits add a `Co-Authored-By` trailer naming the model.
+  `cairn-claude`, through its GitHub noreply address). Agent commits and pull request descriptions end with a `Co-Authored-By` trailer naming the model, and with no
+  other attribution footer.
 - Documentation follows Diátaxis. No em-dashes anywhere in this repository.
 
 ## Commands
