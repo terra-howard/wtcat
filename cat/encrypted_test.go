@@ -260,3 +260,12 @@ func TestCatgeocoordEdges(t *testing.T) {
 		})
 	}
 }
+
+// TestEncryptedEmptyProtectedHeader checks that an encrypted token may have an empty protected header, with the
+// algorithm taken from the key (decision 0015), as a signed or MACed one may.
+func TestEncryptedEmptyProtectedHeader(t *testing.T) {
+	token := encrypt0With(t, []byte{}, enc(t, map[any]any{1: "issuer"}))
+	if _, err := decrypting(validator(), "issuer").Validate(token); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+}
