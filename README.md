@@ -63,7 +63,8 @@ Organized by [Diátaxis](https://diataxis.fr/):
   and [run the tests against CTA-5007-B's examples](docs/how-to/run-the-cta-example-tests.md).
 - **Reference:** the package documentation (`go doc`), [every error and what it means](docs/reference/errors.md),
   and the [measurements](docs/reference/measurements.md) of each task's prediction and outcome.
-- **Explanation:** [why the validator is built the way it is](docs/explanation/design.md), and
+- **Explanation:** [what this is for, in plain words](docs/explanation/in-plain-words.md),
+  [why the validator is built the way it is](docs/explanation/design.md), and
   [how work happens here, and why](docs/explanation/process.md).
 - **Decisions:** [one record per decision](docs/decisions/), proposed or accepted.
 - **Roadmap:** [what is planned next](ROADMAP.md), starting with CAT for Media over QUIC Transport.
