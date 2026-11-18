@@ -44,7 +44,8 @@ vars == <<queue, cache, believed, regStream, delStream, sent, errors>>
 
 None == "none"
 Unanswered(kind) == {s \in Streams : \E i \in 1..Len(queue[s]) : queue[s][i] = kind}
-Answered(kind, s) == s = None \/ \A i \in 1..Len(queue[s]) : queue[s][i] # kind
+\* IF, not \/: TLC explores both sides of a disjunction in an action, and queue["none"] does not exist.
+Answered(kind, s) == IF s = None THEN TRUE ELSE \A i \in 1..Len(queue[s]) : queue[s][i] # kind
 
 Init ==
     /\ queue = [s \in Streams |-> <<>>]
