@@ -29,9 +29,11 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Gremlins on ./${{ matrix.package }}
-        run: >-
-          go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash
-          --config .github/gremlins/${{ matrix.package }}.yaml -o gremlins.json ./${{ matrix.package }}
+        # Decision 0034: a mutant can turn a loop into one that never ends and keeps allocating; capping each
+        # process's address space at 4 GiB makes it crash, and so count as killed, instead of starving the runner.
+        run: |
+          ulimit -v 4194304
+          go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash --config .github/gremlins/${{ matrix.package }}.yaml -o gremlins.json ./${{ matrix.package }}
       # Decision 0028: a misconfigured run can count every mutant as killed and still pass both thresholds. Every
       # package has mutants classified as equivalent, which no test can kill, so a run in which none lived is vacuous.
       - name: Refuse a vacuous run
