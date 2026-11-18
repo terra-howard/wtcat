@@ -11,6 +11,11 @@ const (
 	HMAC256x256 Algorithm = 5   // HMAC with SHA-256
 	ES256       Algorithm = -7  // ECDSA on P-256 with SHA-256
 	PS256       Algorithm = -37 // RSASSA-PSS with SHA-256
+
+	// Content encryption algorithms, for DecryptMessage only (decision 0030). VerifyMessage refuses keys for them.
+	A128GCM Algorithm = 1 // AES-GCM with a 128-bit key and a 128-bit tag
+	A192GCM Algorithm = 2 // AES-GCM with a 192-bit key and a 128-bit tag
+	A256GCM Algorithm = 3 // AES-GCM with a 256-bit key and a 128-bit tag
 )
 
 // String returns the algorithm's name as RFC 9053 and RFC 8230 write it, or "algorithm" and its identifier.
@@ -24,6 +29,12 @@ func (a Algorithm) String() string {
 		return "ES256"
 	case PS256:
 		return "PS256"
+	case A128GCM:
+		return "A128GCM"
+	case A192GCM:
+		return "A192GCM"
+	case A256GCM:
+		return "A256GCM"
 	}
 	return fmt.Sprintf("algorithm %d", int64(a))
 }
@@ -31,6 +42,19 @@ func (a Algorithm) String() string {
 func (a Algorithm) isMAC() bool { return a == HMAC256x64 || a == HMAC256x256 }
 
 func (a Algorithm) known() bool { return a.isMAC() || a == ES256 || a == PS256 }
+
+// aesGCMKeySize returns the key size in bytes of an AES-GCM algorithm, or 0 for any other algorithm.
+func (a Algorithm) aesGCMKeySize() int {
+	switch a {
+	case A128GCM:
+		return 16
+	case A192GCM:
+		return 24
+	case A256GCM:
+		return 32
+	}
+	return 0
+}
 
 // checkTagAgrees applies decision 0012: a COSE tag, if present, must agree with the algorithm.
 func checkTagAgrees(coseTag uint64, a Algorithm) error {

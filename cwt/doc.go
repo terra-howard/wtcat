@@ -27,6 +27,7 @@
 //	verifier.go   Verifier
 //	message.go    VerifyMessage, Key and Message: keys bound to one algorithm, alg optional (decision 0015)
 //	multi.go      COSE_Sign and COSE_Mac with direct recipients, for VerifyMessage (decision 0029)
+//	encrypt0.go   DecryptMessage and IsEncrypted: COSE_Encrypt0 with AES-GCM (decision 0030)
 //	issue.go      Issue and SigningKey: issuing COSE_Mac0 and COSE_Sign1 tokens (decision 0022)
 //
 //	helpers_test.go           helpers and the RFC 8392 Appendix A values shared by the external tests
