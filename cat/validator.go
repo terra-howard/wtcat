@@ -3,6 +3,7 @@ package cat
 import (
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"time"
 
@@ -63,6 +64,10 @@ type Validator struct {
 	// has not assigned yet. Zero means DefaultMOQTClaimKey and DefaultMOQTRevalKey (decision 0035).
 	MOQTClaimKey int64
 	MOQTRevalKey int64
+	// MinRevalidation is the shortest revalidation interval this recipient honours, for moqt-reval. A token asking
+	// to be revalidated more often is refused as unsupported, and zero means this recipient does not revalidate, so
+	// every token with a positive moqt-reval is refused (decision 0036).
+	MinRevalidation time.Duration
 	// DecryptionKeys, if set, returns the AES-GCM key for an encrypted token's kid, bound to the issuer it belongs to
 	// (decision 0030). Nil means this recipient does not decrypt, and encrypted tokens are refused as unsupported.
 	DecryptionKeys KeyFunc
@@ -73,6 +78,10 @@ type Token struct {
 	Algorithm cwt.Algorithm // the algorithm of the innermost MAC or signature, or the encryption if there is none
 	KID       []byte        // the kid of the key that verified or decrypted it, as Algorithm
 	Claims    Claims
+	// Revalidate is how often the caller must validate the token again while a stream it authorized continues,
+	// counting from the last successful validation, and stop the stream once validation fails (moqt-reval,
+	// decision 0036). Zero means never.
+	Revalidate time.Duration
 	// Type is the token's typ header (decision 0033), empty when it has none. For an encrypted token it is the typ
 	// of the message holding the claims.
 	Type string
@@ -85,6 +94,24 @@ type Token struct {
 // DefaultTypes are the typ values accepted when Validator.Types is empty: "CAT", which draft-ietf-moq-c4m's test
 // vectors use (decision 0033).
 var DefaultTypes = []string{"CAT"}
+
+// revalidation turns a moqt-reval of r seconds into an interval, refusing one this recipient cannot honour.
+func (v *Validator) revalidation(r float64) (time.Duration, error) {
+	if r == 0 {
+		return 0, nil
+	}
+	if r*float64(time.Second) >= math.MaxInt64 {
+		return 0, unsupported("moqt-reval of %g seconds is too long to represent", r)
+	}
+	d := time.Duration(r * float64(time.Second))
+	if v.MinRevalidation == 0 {
+		return 0, unsupported("moqt-reval asks for revalidation every %v, and this recipient does not revalidate", d)
+	}
+	if d < v.MinRevalidation {
+		return 0, unsupported("moqt-reval asks for revalidation every %v, more often than this recipient can (%v)", d, v.MinRevalidation)
+	}
+	return d, nil
+}
 
 // checkType refuses a typ this recipient does not accept. Absent is acceptable.
 func (v *Validator) checkType(typ string) error {
@@ -206,7 +233,11 @@ func (v *Validator) finish(msg *cwt.Message, issuer string, encrypted bool, req 
 		return nil, err
 	}
 
-	tok := &Token{Algorithm: msg.Algorithm, KID: msg.KID, Claims: *claims, Type: msg.Type, Encrypted: encrypted, payload: msg.Payload}
+	revalidate, err := v.revalidation(claims.reval)
+	if err != nil {
+		return nil, err
+	}
+	tok := &Token{Algorithm: msg.Algorithm, KID: msg.KID, Claims: *claims, Type: msg.Type, Revalidate: revalidate, Encrypted: encrypted, payload: msg.Payload}
 	if err := v.accept(&tok.Claims, issuer, req, token); err != nil {
 		if key, ok := refusingClaim(err); ok {
 			return nil, &Unacceptable{Token: tok, Claim: key, Err: err}

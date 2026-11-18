@@ -40,6 +40,7 @@ type Claims struct {
 	geocoords []geocoord       // catgeocoord (317)
 	encrypted bool             // the claim set arrived in an encrypted token (decision 0030)
 	moqt      []moqtScope      // the moqt claim's scopes (decision 0035)
+	reval     float64          // moqt-reval, in seconds; 0 when absent (decision 0036)
 	hasMOQT   bool             // the token has a moqt claim
 	// moqtUnknownKey reports a moqt claim with a key other than 0, which makes the claim set unacceptable.
 	moqtUnknownKey bool
@@ -177,7 +178,11 @@ func decodeClaimsIn(payload []byte, encrypted bool, keys claimKeys) (*Claims, er
 			}
 			c.moqt, c.moqtUnknownKey = scopes, unknown
 		case keys.moqtReval:
-			return nil, unsupported("moqt-reval (claim %d): revalidation is not supported yet (decision 0035)", key)
+			r, err := decodeNumber(value)
+			if err != nil || r < 0 {
+				return nil, malformed("moqt-reval (claim %d) is not a non-negative number of seconds", key)
+			}
+			c.reval = r
 		default:
 			if err := c.decodeClaim(key, value); err != nil {
 				return nil, err

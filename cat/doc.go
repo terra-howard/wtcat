@@ -37,6 +37,8 @@
 //	                     within the radius of a listed location (decision 0030)
 //	moqt (TBD)           with Request.MOQT set: a scope must allow the MOQT action, and a token without the claim
 //	                     allows none; its key is Validator.MOQTClaimKey, by default -65537 (decision 0035)
+//	moqt-reval (TBD)     reported as Token.Revalidate; refused when shorter than Validator.MinRevalidation, or
+//	                     when that is zero; its key is Validator.MOQTRevalKey, by default -65538 (decision 0036)
 //	cattpk (319)         with Request.Connection set: a client certificate must have the listed key
 //	catdpop (321)        sets the DPoP proof's window; crit is honoured; jti never causes a refusal
 //
