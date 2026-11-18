@@ -80,3 +80,8 @@ library yet carries draft-ietf-moq-c4m's tokens?
    0x01 with `cat`, and reports refusals with draft 22's request and session codes, as above.
 3. Its tests use the draft's integer encoding examples and the draft-ietf-moq-c4m vectors, and it gets its own
    mutation-testing configuration and CI job.
+4. **Vacuity for a package with no equivalent mutants.** Decision 0028 refuses a full run in which no mutant lived,
+   since every package then had mutants known to be equivalent. catmoqt has none (task 78d), so for it the check
+   reads the package's Gremlins configuration for `test-cpu`, the setting that made runs vacuous, as the pull-request
+   workflow does (decision 0034). Every package now gets that configuration check, and the other three keep the
+   lived-mutant check as well.

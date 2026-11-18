@@ -6,6 +6,9 @@ unleash:
   integration: true
   timeout-coefficient: 10
   workers: 2 # decision 0028: a hosted runner has four CPUs, and each worker runs the whole suite. Never set test-cpu.
+  threshold:
+    efficacy: 97 # measured 100% in task 78d, 45 killed and none living
+    mutant-coverage: 90 # measured 100%; a mutant in a case expression is never covered, so keep conditions out of them
 mutants:
   invert-logical:
     enabled: true
