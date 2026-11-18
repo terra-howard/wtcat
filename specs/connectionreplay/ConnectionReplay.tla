@@ -12,7 +12,7 @@
 (*   Atomic: "bind if unbound" is one step (TRUE), or a lookup followed by *)
 (*           a separate write (FALSE), as a cache read then set would be.  *)
 (***************************************************************************)
-EXTENDS FiniteSets
+EXTENDS FiniteSets, Naturals
 
 CONSTANTS Relays, Tokens, Shared, Atomic, None
 
