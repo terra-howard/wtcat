@@ -119,6 +119,19 @@ func TestCatreplayOverMOQTRules(t *testing.T) {
 	}
 }
 
+// TestBindConnectionKeepsAFractionalExp checks that a binding is kept to the token's exp exactly, fraction included.
+func TestBindConnectionKeepsAFractionalExp(t *testing.T) {
+	b := &bindings{}
+	exp := float64(replayExp.Unix()) + 0.5
+	token := replayToken(t, map[any]any{7: []byte{1}, 4: exp, 308: 1})
+	if _, err := bindingValidator(b).ValidateRequest(token, onConnection(4, "c1")); err != nil {
+		t.Fatalf("ValidateRequest: %v", err)
+	}
+	if want := replayExp.Add(500 * time.Millisecond); !b.until.Equal(want) {
+		t.Fatalf("until = %v, want %v", b.until, want)
+	}
+}
+
 // TestCatreplayOverHTTPIsUnchanged checks that an HTTP request uses Replay, never BindConnection, and keeps decision
 // 0021's single use, even for a token that also carries the moqt claim.
 func TestCatreplayOverHTTPIsUnchanged(t *testing.T) {
