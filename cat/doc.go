@@ -23,6 +23,8 @@
 //	exp (4)              the current time must be before it, with no leeway
 //	nbf (5)              the current time must not be before it, with no leeway
 //	cnf (8)              with jkt: the request's DPoP proof must be made with that key and match the request
+//	                     with ckt, over MOQT only: so must the MOQT action's CWT proof, and over MOQT jkt is checked
+//	                     against it too; Validator.ActxKey and AthKey must be set (decision 0038)
 //	geohash (282)        with Request.Location.Coordinates set: the client must be in a listed region; up to 4
 //	                     characters unencrypted, up to 12 in an encrypted token (decisions 0027 and 0030)
 //	catreplay (308)      with Validator.Replay set: 1 or 2 refuses a cti seen before; 0 never refuses
@@ -42,7 +44,8 @@
 //	moqt-reval (TBD)     reported as Token.Revalidate; refused when shorter than Validator.MinRevalidation, or
 //	                     when that is zero; its key is Validator.MOQTRevalKey, by default -65538 (decision 0036)
 //	cattpk (319)         with Request.Connection set: a client certificate must have the listed key
-//	catdpop (321)        sets the DPoP proof's window; crit is honoured; jti never causes a refusal
+//	catdpop (321)        sets the DPoP proof's window; crit is honoured; over HTTP jti never causes a refusal, and over
+//	                     MOQT a jti other than 0 refuses a reused proof when Validator.ProofReplay is set
 //
 // cnf, catnip, catu, catm and cath need ValidateRequest: Validate refuses tokens carrying them as unsupported,
 // since it has nothing to check them against. A cnf with a confirmation method other than jkt is refused as

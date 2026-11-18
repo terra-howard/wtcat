@@ -21,6 +21,7 @@ import (
 type c4mVectors struct {
 	Keys struct {
 		HMAC string `json:"hmac_sha256"`
+		D    string `json:"es256_private_key"`
 		X    string `json:"es256_public_key_x"`
 		Y    string `json:"es256_public_key_y"`
 	} `json:"keys"`

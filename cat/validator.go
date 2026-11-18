@@ -61,6 +61,17 @@ type Validator struct {
 	// connection ends: decision 0032's model shows each of the three is needed. It is called only for tokens that
 	// pass every other check. MOQT requests never call Replay, and HTTP requests never call BindConnection.
 	BindConnection func(cti []byte, connection string, until time.Time) (elsewhere bool)
+	// ActxKey and AthKey are the claim keys of a MOQT DPoP proof's actx and ath, which have no assigned values yet,
+	// so they must be agreed with the issuer's clients. While either is zero, a token with cnf is refused for MOQT
+	// actions as unsupported (decision 0038).
+	ActxKey int64
+	AthKey  int64
+	// ProofReplay, if set, records the cti of a MOQT DPoP proof and reports whether it had been seen, when the
+	// token's catdpop asks for replay detection (decision 0038). It must remember the cti until the time until, the
+	// proof's iat plus the window, since a proof stays fresh that long (decision 0032's third model), and be atomic
+	// and shared like Replay. It is called after every other check but catreplay's. Without it, a proof can be
+	// reused within its window.
+	ProofReplay func(cti []byte, until time.Time) (seen bool)
 	// Issuance, if set, lets the Validator issue tokens: renewals under catr (decision 0022). Nil turns issuing off.
 	Issuance *Issuance
 	// Types lists the values of the COSE typ header (RFC 9596) this recipient accepts. A token without typ is
@@ -278,7 +289,14 @@ func (v *Validator) accept(claims *Claims, issuer string, req *Request, token st
 	if err := checkRequest(claims, req); err != nil {
 		return err
 	}
-	if err := v.checkConfirmation(claims, req, token, t); err != nil {
+	var proofCTI []byte
+	var proofUntil time.Time
+	if req != nil && req.MOQT != nil {
+		var err error
+		if proofCTI, proofUntil, err = v.checkMOQTProof(claims, req, token, t); err != nil {
+			return err
+		}
+	} else if err := v.checkConfirmation(claims, req, token, t); err != nil {
 		return err
 	}
 	if err := checkLocation(claims, req); err != nil {
@@ -295,6 +313,11 @@ func (v *Validator) accept(claims *Claims, issuer string, req *Request, token st
 	}
 	if err := checkConnection(claims, req); err != nil {
 		return err
+	}
+	// Next to last: a proof is made for one action, so one used up on a request catreplay then refuses costs nothing,
+	// while the other order would use up the token's cti (decision 0038).
+	if proofCTI != nil && v.ProofReplay != nil && v.ProofReplay(proofCTI, proofUntil) {
+		return fmt.Errorf("%w: the MOQT proof's cti was used before", ErrProof)
 	}
 	// Last, so that a refused token never uses up its cti. Values above 2 are undefined and treated as 1.
 	if claims.replay == nil || *claims.replay == 0 {

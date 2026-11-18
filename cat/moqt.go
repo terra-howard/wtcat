@@ -34,6 +34,8 @@ type MOQTAction struct {
 	Action    int
 	Namespace [][]byte
 	Track     []byte
+	// Proof is the DPoP proof sent with the action, a COSE_Sign1, which a token with cnf requires (decision 0038).
+	Proof []byte
 }
 
 var (

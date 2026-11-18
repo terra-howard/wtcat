@@ -56,7 +56,7 @@ func (v *Validator) ValidateRequest(token string, req *Request) (*Token, error) 
 // checkRequest checks catm, catnip, catu and cath, and refuses a token with any request claim when there is no
 // request. cnf, which needs one too, is checked by checkConfirmation.
 func checkRequest(c *Claims, req *Request) error {
-	if c.Methods == nil && c.headers == nil && c.uri == nil && c.network == nil && c.jkt == nil {
+	if c.Methods == nil && c.headers == nil && c.uri == nil && c.network == nil && c.jkt == nil && c.ckt == nil {
 		return nil
 	}
 	if req == nil {
