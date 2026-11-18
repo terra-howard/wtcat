@@ -31,8 +31,8 @@ namespaces and track names, and denies everything else.
    to see the connection as well as the `cti`.
 5. **DPoP proofs as CWTs.** Thumbprint confirmation with `ckt` (RFC 9679), and COSE_Sign1 proofs with `kccs`,
    `actx` and `ath`, checked per action. The existing COSE_Sign1 verification and RFC 9449 DPoP code are the
-   starting points. Decision 0038 supports ES256 proofs, which the draft requires; ES384 and EdDSA, which it
-   recommends, come next.
+   starting points. Decision 0038 supports ES256 proofs, which the draft requires, and its update ES384 and
+   EdDSA, which it recommends.
 6. **Composite claims** (`or`, `and`, `nor`), which the draft's multi-scope examples use. Their own IETF draft has
    to settle claim keys first ([the design explanation](docs/explanation/design.md) leaves them out for that reason).
 7. **A MOQT integration package**, the counterpart of `cathttp`, that a Go MOQT relay calls at SETUP and for each

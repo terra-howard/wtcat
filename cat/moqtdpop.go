@@ -2,13 +2,18 @@ package cat
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
+	"slices"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -108,10 +113,6 @@ func parseMOQTProof(raw []byte, actxKey, athKey int64) (*moqtProof, error) {
 	if decMode.Unmarshal(protected, &header) != nil {
 		return nil, errors.New("the proof's protected header is not a map with integer labels")
 	}
-	var alg int64
-	if a, ok := header[headerAlg]; !ok || decMode.Unmarshal(a, &alg) != nil || alg != int64(cwt.ES256) {
-		return nil, errors.New("the proof's alg is not ES256, the one algorithm supported for MOQT proofs")
-	}
 	var typ string
 	if t, ok := header[headerTyp]; !ok || majorType(t) != majorText || decMode.Unmarshal(t, &typ) != nil || typ != moqtProofTyp {
 		return nil, fmt.Errorf("the proof's typ is not %q", moqtProofTyp)
@@ -120,12 +121,16 @@ func parseMOQTProof(raw []byte, actxKey, athKey int64) (*moqtProof, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The alg must be the one that signs with the key's curve, which also refuses a symmetric or unknown alg.
+	var alg int64
+	if decMode.Unmarshal(header[headerAlg], &alg) != nil || alg != key.curve.alg {
+		return nil, fmt.Errorf("the proof's alg is not %s, the algorithm of its %s key", key.curve.algName, key.curve.name)
+	}
 	toBeSigned, err := cbor.Marshal([]any{"Signature1", protected, []byte{}, payload})
 	if err != nil {
 		return nil, err
 	}
-	digest := sha256.Sum256(toBeSigned)
-	if err := verifySignature(key, digest[:], sig); err != nil {
+	if err := key.verify(toBeSigned, sig); err != nil {
 		return nil, err
 	}
 	p := &moqtProof{}
@@ -153,56 +158,113 @@ func parseMOQTProof(raw []byte, actxKey, athKey int64) (*moqtProof, error) {
 	return p, nil
 }
 
-// kccsKey reads the public key from a kccs header parameter: a CWT Claims Set whose cnf holds a COSE_Key, which must
-// be an EC2 key on P-256.
-func kccsKey(kccs cbor.RawMessage) (*ecdsa.PublicKey, error) {
-	var claims, cnf, key map[int64]cbor.RawMessage
-	if kccs == nil || decMode.Unmarshal(kccs, &claims) != nil {
-		return nil, errors.New("the proof has no kccs in its protected header")
-	}
-	if decMode.Unmarshal(claims[claimCnf], &cnf) != nil || decMode.Unmarshal(cnf[1], &key) != nil {
-		return nil, errors.New("the proof's kccs has no cnf COSE_Key")
-	}
-	if _, ok := key[-4]; ok {
-		return nil, errors.New("the proof's COSE_Key carries a private key")
-	}
-	var kty, crv int64
-	if decMode.Unmarshal(key[1], &kty) != nil || kty != 2 || decMode.Unmarshal(key[-1], &crv) != nil || crv != 1 {
-		return nil, errors.New("the proof's COSE_Key is not an EC2 key on P-256")
-	}
-	// A y that is not a byte string, such as the sign bit of a compressed point, decodes to nothing, and then the
-	// point has the wrong length, as it does when x has 32 bytes and y does not.
-	x, _ := proofBytes(key[-2])
-	y, _ := proofBytes(key[-3])
-	if len(x) != 32 {
-		return nil, errors.New("the proof's COSE_Key does not hold a 32-byte x")
-	}
-	pub, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), append(append([]byte{4}, x...), y...))
-	if err != nil {
-		return nil, errors.New("the proof's COSE_Key is not a point on P-256")
-	}
-	return pub, nil
+// proofCurve is a COSE_Key type and curve a MOQT proof may use, with the one alg that signs with it (decision 0038).
+type proofCurve struct {
+	kty, crv int64
+	size     int            // the length of a coordinate
+	ec       elliptic.Curve // nil for Ed25519
+	name     string         // the curve's JWK name
+	alg      int64
+	algName  string
 }
 
-// coseThumbprints returns a P-256 key's COSE Key Thumbprint (RFC 9679), the SHA-256 of the deterministic encoding of
-// kty, crv, x and y, and the JWK SHA-256 Thumbprint (RFC 7638) of the equivalent JWK.
-func coseThumbprints(pub *ecdsa.PublicKey) (ckt, jkt []byte, err error) {
-	pt, err := pub.Bytes()
+var proofCurves = []proofCurve{
+	{kty: 2, crv: 1, size: 32, ec: elliptic.P256(), name: "P-256", alg: int64(cwt.ES256), algName: "ES256"},
+	{kty: 2, crv: 2, size: 48, ec: elliptic.P384(), name: "P-384", alg: -35, algName: "ES384"},
+	{kty: 1, crv: 6, size: 32, name: "Ed25519", alg: -8, algName: "EdDSA"},
+}
+
+// proofKey is the public key of a MOQT proof, with the COSE_Key parameters its thumbprints are made of.
+type proofKey struct {
+	pub   crypto.PublicKey // *ecdsa.PublicKey or ed25519.PublicKey
+	curve proofCurve
+	x, y  []byte // y is nil for an Ed25519 key
+}
+
+// kccsKey reads the public key from a kccs header parameter: a CWT Claims Set whose cnf holds a COSE_Key, which must
+// be an EC2 key on P-256 or P-384, or an OKP key on Ed25519.
+func kccsKey(kccs cbor.RawMessage) (proofKey, error) {
+	var claims, cnf, key map[int64]cbor.RawMessage
+	if kccs == nil || decMode.Unmarshal(kccs, &claims) != nil {
+		return proofKey{}, errors.New("the proof has no kccs in its protected header")
+	}
+	if decMode.Unmarshal(claims[claimCnf], &cnf) != nil || decMode.Unmarshal(cnf[1], &key) != nil {
+		return proofKey{}, errors.New("the proof's kccs has no cnf COSE_Key")
+	}
+	if _, ok := key[-4]; ok {
+		return proofKey{}, errors.New("the proof's COSE_Key carries a private key")
+	}
+	// A kty or crv that is missing or not an integer decodes as 0, which no curve has.
+	var kty, crv int64
+	_ = decMode.Unmarshal(key[1], &kty)
+	_ = decMode.Unmarshal(key[-1], &crv)
+	i := slices.IndexFunc(proofCurves, func(c proofCurve) bool { return c.kty == kty && c.crv == crv })
+	if i < 0 {
+		return proofKey{}, errors.New("the proof's COSE_Key is not a P-256, P-384 or Ed25519 key")
+	}
+	k := proofKey{curve: proofCurves[i]}
+	// A y that is not a byte string, such as the sign bit of a compressed point, decodes to nothing, and then the
+	// point has the wrong length, as it does when x has the right length and y does not.
+	k.x, _ = proofBytes(key[-2])
+	if len(k.x) != k.curve.size {
+		return proofKey{}, fmt.Errorf("the proof's COSE_Key does not hold a %d-byte x", k.curve.size)
+	}
+	if k.curve.ec == nil {
+		k.pub = ed25519.PublicKey(k.x)
+		return k, nil
+	}
+	k.y, _ = proofBytes(key[-3])
+	pub, err := ecdsa.ParseUncompressedPublicKey(k.curve.ec, append(append([]byte{4}, k.x...), k.y...))
+	if err != nil {
+		return proofKey{}, fmt.Errorf("the proof's COSE_Key is not a point on %s", k.curve.name)
+	}
+	k.pub = pub
+	return k, nil
+}
+
+// verify checks a signature over toBeSigned with the key, by the alg of its curve.
+func (k proofKey) verify(toBeSigned, sig []byte) error {
+	pub, ok := k.pub.(*ecdsa.PublicKey)
+	if !ok {
+		if !ed25519.Verify(k.pub.(ed25519.PublicKey), toBeSigned, sig) {
+			return errors.New("the EdDSA signature does not verify")
+		}
+		return nil
+	}
+	digest := sha256.Sum256(toBeSigned)
+	d := digest[:]
+	if k.curve.size == 48 {
+		digest384 := sha512.Sum384(toBeSigned)
+		d = digest384[:]
+	}
+	n := k.curve.size
+	if len(sig) != 2*n || !ecdsa.Verify(pub, d, new(big.Int).SetBytes(sig[:n]), new(big.Int).SetBytes(sig[n:])) {
+		return fmt.Errorf("the %s signature does not verify", k.curve.algName)
+	}
+	return nil
+}
+
+// thumbprintMode encodes a COSE_Key's required parameters deterministically, for its COSE Key Thumbprint.
+var thumbprintMode, _ = cbor.EncOptions{Sort: cbor.SortCoreDeterministic}.EncMode()
+
+// coseThumbprints returns a key's COSE Key Thumbprint (RFC 9679), the SHA-256 of the deterministic encoding of its
+// required parameters (kty, crv, x, and y for an EC2 key), and the JWK SHA-256 Thumbprint (RFC 7638) of the
+// equivalent JWK (RFC 8037 for Ed25519).
+func coseThumbprints(k proofKey) (ckt, jkt []byte, err error) {
+	str := func(s string) json.RawMessage { m, _ := json.Marshal(s); return m }
+	b64 := base64.RawURLEncoding.EncodeToString
+	required := map[int64]any{1: k.curve.kty, -1: k.curve.crv, -2: k.x}
+	jwk := map[string]json.RawMessage{"kty": str("OKP"), "crv": str(k.curve.name), "x": str(b64(k.x))}
+	if k.curve.kty == 2 {
+		required[-3] = k.y
+		jwk["kty"], jwk["y"] = str("EC"), str(b64(k.y))
+	}
+	encoded, err := thumbprintMode.Marshal(required)
 	if err != nil {
 		return nil, nil, err
 	}
-	x, y := pt[1:33], pt[33:]
-	var b bytes.Buffer
-	b.Write([]byte{0xa4, 0x01, 0x02, 0x20, 0x01, 0x21, 0x58, 0x20}) // {1: 2, -1: 1, -2: h'...
-	b.Write(x)
-	b.Write([]byte{0x22, 0x58, 0x20}) // -3: h'...
-	b.Write(y)
-	sum := sha256.Sum256(b.Bytes())
-	str := func(s string) json.RawMessage { m, _ := json.Marshal(s); return m }
-	jkt, err = thumbprint(map[string]json.RawMessage{
-		"kty": str("EC"), "crv": str("P-256"),
-		"x": str(base64.RawURLEncoding.EncodeToString(x)), "y": str(base64.RawURLEncoding.EncodeToString(y)),
-	})
+	sum := sha256.Sum256(encoded)
+	jkt, err = thumbprint(jwk)
 	return sum[:], jkt, err
 }
 

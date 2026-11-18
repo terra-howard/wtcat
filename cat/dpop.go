@@ -211,6 +211,8 @@ func thumbprint(jwk map[string]json.RawMessage) ([]byte, error) {
 		names = []string{"crv", "kty", "x", "y"}
 	case "RSA":
 		names = []string{"e", "kty", "n"}
+	case "OKP": // RFC 8037 section 2, for a MOQT proof's Ed25519 key (decision 0038)
+		names = []string{"crv", "kty", "x"}
 	default:
 		return nil, fmt.Errorf("no thumbprint for kty %q", kty)
 	}
