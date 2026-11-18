@@ -45,6 +45,7 @@ green the easy way.
 | Protected tests and a census gate | This project; see [decision 0003](../decisions/0003-protected-tests.md) |
 | Fuzz every parser of untrusted input | This project; see [decision 0011](../decisions/0011-fuzzing.md) |
 | Test the tests by planting faults | This project; see [decision 0013](../decisions/0013-mutation-testing.md) |
+| Model-check designs with shared state before building them (an experiment) | This project; see [decision 0032](../decisions/0032-model-checking-designs.md) |
 | Predictions committed before measurements | This project's owner, carried over from earlier work |
 | Every commit has a human who stands behind it | Magerramov |
 
@@ -81,6 +82,16 @@ Gremlins starts thousands of short-lived test processes and loads every core for
 interruption costs nothing, such as a build server, rather than on a machine doing other work. In CI it is a gate:
 each package has an efficacy threshold, and a run below it fails
 ([decision 0024](../decisions/0024-mutation-testing-in-ci.md)).
+
+## Checking designs before code (an experiment)
+
+Tests check code, one run at a time. A design where several parties share state, such as relays sharing which
+connection a token is bound to, can fail only in rare orderings that no test happens to run. For such designs the
+project is trying TLA+: a small model of the design, with the properties it must keep, checked by TLC across every
+ordering up to a bound. Each model lives in `specs/`, its configurations and their predicted outcomes go in the
+measurements before TLC runs, and its properties become Go property tests where the code exists, so the model and
+the code cannot quietly drift apart. Whether this earns its place is judged after the first two models
+([decision 0032](../decisions/0032-model-checking-designs.md)).
 
 ## Roles
 

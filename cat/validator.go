@@ -48,7 +48,10 @@ type Validator struct {
 	// 0 means DefaultDPoPWindow (decision 0020).
 	DPoPWindow time.Duration
 	// Replay, if set, records a cti and reports whether it had been seen before, for catreplay (decision 0021). It
-	// is called only for tokens that pass every other check and whose catreplay is not 0.
+	// is called only for tokens that pass every other check and whose catreplay is not 0. It must record and report
+	// in one atomic step, so that concurrent calls with the same cti report it unseen at most once: a lookup followed
+	// by a separate write lets two requests both pass (decision 0032's model shows the same for relays sharing a
+	// store). Every recipient that accepts the same tokens must share it.
 	Replay func(cti []byte) (seen bool)
 	// Issuance, if set, lets the Validator issue tokens: renewals under catr (decision 0022). Nil turns issuing off.
 	Issuance *Issuance
