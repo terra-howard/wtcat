@@ -58,6 +58,8 @@ type mac0 struct {
 	protected []byte // the encoded protected header; nil means {1: 5}
 	kid       []byte // put in the unprotected header when not nil
 	payload   []byte // the encoded claim set
+	// unprotectedExtra adds parameters to the unprotected header.
+	unprotectedExtra map[int64]any
 }
 
 func (m mac0) bytes(t testing.TB) []byte {
@@ -69,6 +71,9 @@ func (m mac0) bytes(t testing.TB) []byte {
 	unprotected := map[int64]any{}
 	if m.kid != nil {
 		unprotected[4] = m.kid
+	}
+	for k, v := range m.unprotectedExtra {
+		unprotected[k] = v
 	}
 	h := hmac.New(sha256.New, hmacSecret)
 	h.Write(enc(t, []any{"MAC0", protected, []byte{}, m.payload}))

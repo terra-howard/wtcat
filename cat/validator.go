@@ -52,6 +52,10 @@ type Validator struct {
 	Replay func(cti []byte) (seen bool)
 	// Issuance, if set, lets the Validator issue tokens: renewals under catr (decision 0022). Nil turns issuing off.
 	Issuance *Issuance
+	// Types lists the values of the COSE typ header (RFC 9596) this recipient accepts. A token without typ is
+	// acceptable; one whose typ is not listed is refused as unsupported, so that, for example, a DPoP proof typed
+	// "dpop-proof+cwt" is never taken for a CAT. Empty means DefaultTypes (decision 0033).
+	Types []string
 	// DecryptionKeys, if set, returns the AES-GCM key for an encrypted token's kid, bound to the issuer it belongs to
 	// (decision 0030). Nil means this recipient does not decrypt, and encrypted tokens are refused as unsupported.
 	DecryptionKeys KeyFunc
@@ -62,10 +66,32 @@ type Token struct {
 	Algorithm cwt.Algorithm // the algorithm of the innermost MAC or signature, or the encryption if there is none
 	KID       []byte        // the kid of the key that verified or decrypted it, as Algorithm
 	Claims    Claims
+	// Type is the token's typ header (decision 0033), empty when it has none. For an encrypted token it is the typ
+	// of the message holding the claims.
+	Type string
 	// Encrypted reports that the token arrived as a COSE_Encrypt0, so its claims count as encrypted (decision
 	// 0030). Renew does not renew encrypted tokens, since a renewal is not encrypted.
 	Encrypted bool
 	payload   []byte // the claim set as received, for renewal
+}
+
+// DefaultTypes are the typ values accepted when Validator.Types is empty: "CAT", which draft-ietf-moq-c4m's test
+// vectors use (decision 0033).
+var DefaultTypes = []string{"CAT"}
+
+// checkType refuses a typ this recipient does not accept. Absent is acceptable.
+func (v *Validator) checkType(typ string) error {
+	if typ == "" {
+		return nil
+	}
+	types := v.Types
+	if len(types) == 0 {
+		types = DefaultTypes
+	}
+	if !slices.Contains(types, typ) {
+		return unsupported("typ %q is not a type this recipient accepts", typ)
+	}
+	return nil
 }
 
 // Validate checks that a token, in its text form, is valid and acceptable to this recipient now, and returns it.
@@ -105,6 +131,9 @@ func (v *Validator) validate(token string, req *Request) (*Token, error) {
 		var dec *cwt.Message
 		var decIssuer string
 		if dec, decIssuer, err = lookupMessage(data, v.DecryptionKeys, cwt.DecryptMessage); err != nil {
+			return nil, err
+		}
+		if err := v.checkType(dec.Type); err != nil {
 			return nil, err
 		}
 		if len(dec.Protected) > 0 {
@@ -152,6 +181,9 @@ func lookupMessage(data []byte, f KeyFunc, open func([]byte, cwt.KeyLookup) (*cw
 
 // finish decodes a verified or decrypted claim set and checks that it is acceptable.
 func (v *Validator) finish(msg *cwt.Message, issuer string, encrypted bool, req *Request, token string) (*Token, error) {
+	if err := v.checkType(msg.Type); err != nil {
+		return nil, err
+	}
 	if err := checkDeterministic(msg.Payload); err != nil {
 		return nil, fmt.Errorf("claim set: %w", err)
 	}
@@ -160,7 +192,7 @@ func (v *Validator) finish(msg *cwt.Message, issuer string, encrypted bool, req 
 		return nil, err
 	}
 
-	tok := &Token{Algorithm: msg.Algorithm, KID: msg.KID, Claims: *claims, Encrypted: encrypted, payload: msg.Payload}
+	tok := &Token{Algorithm: msg.Algorithm, KID: msg.KID, Claims: *claims, Type: msg.Type, Encrypted: encrypted, payload: msg.Payload}
 	if err := v.accept(&tok.Claims, issuer, req, token); err != nil {
 		if key, ok := refusingClaim(err); ok {
 			return nil, &Unacceptable{Token: tok, Claim: key, Err: err}
