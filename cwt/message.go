@@ -16,7 +16,8 @@ type Key struct {
 // KeyLookup returns the key for a message's kid, which is nil when the message has none.
 type KeyLookup func(kid []byte) (Key, error)
 
-// Message is a COSE_Mac0 or COSE_Sign1 message whose MAC or signature verified.
+// Message is a COSE message whose MAC or signature verified: a COSE_Mac0 or COSE_Sign1, or a tagged COSE_Mac or
+// COSE_Sign (decision 0029). For the last two, KID names the recipient or signer whose key verified it.
 type Message struct {
 	Algorithm Algorithm // the key's algorithm, which any alg header matched
 	KID       []byte    // nil when the message has no kid
@@ -27,12 +28,19 @@ type Message struct {
 // VerifyMessage verifies a COSE_Mac0 or COSE_Sign1 message, tagged or not, with the key that lookup returns for
 // its kid, and returns the message without interpreting its payload.
 //
+// A tagged COSE_Sign (98) or COSE_Mac (97) is verified signer by signer, or recipient by recipient (decision
+// 0029): one whose kid the lookup refuses is skipped, one whose key is found must verify, and at least one must.
+// Recipients must use the direct method (-6).
+//
 // The key's algorithm decides how the message is verified. An alg header is optional (CTA-5007-B section
 // 4.3.1.1.1); if present it must be protected and must name the key's algorithm. Header rules are otherwise those
 // of decision 0008. Unlike VerifyMac0, VerifySign1 and Verifier, the token never chooses the algorithm.
 func VerifyMessage(token []byte, lookup KeyLookup) (*Message, error) {
 	if lookup == nil {
 		return nil, errors.New("cwt: VerifyMessage needs a key lookup")
+	}
+	if t := coseTagOf(token); t == tagSign || t == tagMac {
+		return verifyMulti(token, lookup)
 	}
 	msg, err := parseMessage(token, 0)
 	if err != nil {
