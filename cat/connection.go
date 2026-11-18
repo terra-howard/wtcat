@@ -14,6 +14,10 @@ type Connection struct {
 	TLS        bool     // the request came over TLS or QUIC
 	ALPN       string   // the negotiated ALPN protocol; empty if none was determined
 	ClientKeys [][]byte // the DER SubjectPublicKeyInfo of each certificate in the client's chain
+	// ID names the connection uniquely among every connection whose requests share a BindConnection store, for
+	// catreplay over MOQT (decision 0037). A QUIC connection ID can change during a connection, so use the
+	// recipient's own stable name for it.
+	ID string
 }
 
 // ErrConnection means the request's connection does not satisfy the token's catalpn or cattpk claim.
