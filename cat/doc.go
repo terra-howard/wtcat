@@ -35,6 +35,8 @@
 //	catgeoiso3166 (316)  with Request.Location set: the client must be in a listed country or region
 //	catgeocoord (317)    only in an encrypted token; with Request.Location.Coordinates set: the client must be
 //	                     within the radius of a listed location (decision 0030)
+//	moqt (TBD)           with Request.MOQT set: a scope must allow the MOQT action, and a token without the claim
+//	                     allows none; its key is Validator.MOQTClaimKey, by default -65537 (decision 0035)
 //	cattpk (319)         with Request.Connection set: a client certificate must have the listed key
 //	catdpop (321)        sets the DPoP proof's window; crit is honoured; jti never causes a refusal
 //
@@ -86,6 +88,7 @@
 //	network.go        catnip: ASNs and RFC 9164 prefixes
 //	connection.go     catalpn, cattpk and Connection
 //	geo.go            catgeoiso3166 and Location
+//	moqt.go           the moqt claim, MOQTAction and the MOQT action codes (decision 0035)
 //	dpop.go           cnf and catdpop: DPoP proofs, keys from jwk, RFC 7638 thumbprints (decision 0020)
 //	decode.go         the token's text form: strict base64url and the length limit
 //	deterministic.go  the deterministic-encoding check of section 4.5
@@ -96,4 +99,5 @@
 //	cta_test.go       tests against CTA-5007-B's own examples, built with -tags cta (decision 0014)
 //	interop_test.go   fixtures from other CAT implementations, judged by the specification (decision 0026)
 //	encrypted_test.go encrypted tokens through the Validator, end to end (decision 0030)
+//	c4m_test.go       draft-ietf-moq-c4m's Appendix A vectors (decisions 0033 and 0035)
 package cat

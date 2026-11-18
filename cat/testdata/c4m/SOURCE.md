@@ -2,9 +2,9 @@
 
 Test vectors from Appendix A of draft-ietf-moq-c4m, *Authorization scheme for MOQT using Common Access Tokens*,
 taken from the working group's editor's copy at <https://github.com/moq-wg/CAT-4-MOQT>, commit
-`55d8a2e8` (2026-11-02), file `draft-ietf-moq-c4m.md`, sections "Keys", "Token Structure" and "Token
-Validation". The JSON is the draft's own, with its folded lines unfolded as the appendix instructs, and only the
-three sections used here kept.
+`55d8a2e8` (2026-11-02), file `draft-ietf-moq-c4m.md`, sections "Keys", "Token Structure", "Token
+Validation" and "MOQT Authorization Scopes". The JSON is the draft's own, with its folded lines unfolded as the appendix instructs, and only the
+sections used here kept.
 
 Licence: these are Code Components of an IETF document. Under the IETF Trust Legal Provisions, section 4, Code
 Components may be used under the Revised BSD License:

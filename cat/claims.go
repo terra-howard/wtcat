@@ -29,20 +29,24 @@ type Claims struct {
 	Methods   []string     // catm (313): the methods the token may be used with
 
 	// The claims below are enforced but not exposed; each is nil when absent.
-	jkt        []byte           // cnf (8): its jkt, the thumbprint of the key a DPoP proof must use
-	replay     *uint64          // catreplay (308)
-	network    []netMatch       // catnip (311)
-	uri        []componentMatch // catu (312)
-	alpns      [][]byte         // catalpn (314)
-	headers    []headerMatch    // cath (315)
-	countries  []string         // catgeoiso3166 (316)
-	geohashes  []string         // geohash (282), lower case; empty but not nil for an empty array
-	geocoords  []geocoord       // catgeocoord (317)
-	encrypted  bool             // the claim set arrived in an encrypted token (decision 0030)
-	tpk        []byte           // cattpk (319)
-	dpopWindow *uint64          // catdpop (321): its window setting, in seconds
-	catif      cbor.RawMessage  // catif (322) as received, parsed only for a response to a refusal
-	catr       cbor.RawMessage  // catr (323) as received, parsed only when renewal is attempted (decision 0022)
+	jkt       []byte           // cnf (8): its jkt, the thumbprint of the key a DPoP proof must use
+	replay    *uint64          // catreplay (308)
+	network   []netMatch       // catnip (311)
+	uri       []componentMatch // catu (312)
+	alpns     [][]byte         // catalpn (314)
+	headers   []headerMatch    // cath (315)
+	countries []string         // catgeoiso3166 (316)
+	geohashes []string         // geohash (282), lower case; empty but not nil for an empty array
+	geocoords []geocoord       // catgeocoord (317)
+	encrypted bool             // the claim set arrived in an encrypted token (decision 0030)
+	moqt      []moqtScope      // the moqt claim's scopes (decision 0035)
+	hasMOQT   bool             // the token has a moqt claim
+	// moqtUnknownKey reports a moqt claim with a key other than 0, which makes the claim set unacceptable.
+	moqtUnknownKey bool
+	tpk            []byte          // cattpk (319)
+	dpopWindow     *uint64         // catdpop (321): its window setting, in seconds
+	catif          cbor.RawMessage // catif (322) as received, parsed only for a response to a refusal
+	catr           cbor.RawMessage // catr (323) as received, parsed only when renewal is attempted (decision 0022)
 }
 
 // componentMatch is one member of a catu claim: a URI component (0 to 8) and its match.
@@ -127,11 +131,18 @@ func unsupported(format string, args ...any) error {
 
 // decodeClaims decodes a verified payload as a CAT claim set. Claims it does not know are ignored, whatever their
 // key or value (sections 4.3.1.5 and 4.5); claims it knows must have the right type and no tag (section 4.5).
-func decodeClaims(payload []byte) (*Claims, error) { return decodeClaimsIn(payload, false) }
+func decodeClaims(payload []byte) (*Claims, error) {
+	return decodeClaimsIn(payload, false, defaultClaimKeys)
+}
+
+// claimKeys are the keys of claims whose keys are not yet assigned, which a Validator can set (decision 0035).
+type claimKeys struct{ moqt, moqtReval int64 }
+
+var defaultClaimKeys = claimKeys{moqt: DefaultMOQTClaimKey, moqtReval: DefaultMOQTRevalKey}
 
 // decodeClaimsIn is decodeClaims for a claim set that may have arrived encrypted, which lifts the limits sections
 // 4.6.9, 4.6.15 and 4.6.16 set on unencrypted claims (decision 0030).
-func decodeClaimsIn(payload []byte, encrypted bool) (*Claims, error) {
+func decodeClaimsIn(payload []byte, encrypted bool, keys claimKeys) (*Claims, error) {
 	if len(payload) > 0 && majorType(payload) == majorTag {
 		return nil, unsupported("nested CWT")
 	}
@@ -158,9 +169,21 @@ func decodeClaimsIn(payload []byte, encrypted bool) (*Claims, error) {
 		default:
 			return nil, malformed("claim key of type %T", k)
 		}
-		if err := c.decodeClaim(key, value); err != nil {
-			return nil, err
+		switch key {
+		case keys.moqt: // a tag, like any other type that is not a map, is refused by decodeMOQT
+			scopes, unknown, err := decodeMOQT(value)
+			if err != nil {
+				return nil, err
+			}
+			c.moqt, c.moqtUnknownKey = scopes, unknown
+		case keys.moqtReval:
+			return nil, unsupported("moqt-reval (claim %d): revalidation is not supported yet (decision 0035)", key)
+		default:
+			if err := c.decodeClaim(key, value); err != nil {
+				return nil, err
+			}
 		}
+
 	}
 	return c, nil
 }

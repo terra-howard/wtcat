@@ -36,6 +36,9 @@ type Request struct {
 	// ViaDPoPScheme reports that the token arrived in Authorization: DPoP, so it must be bound by cnf and the
 	// proof must carry ath (RFC 9449 Section 7).
 	ViaDPoPScheme bool
+	// MOQT is the MOQT action the token is presented for, which the moqt claim must authorize (decision 0035). Nil
+	// means an HTTP request, which the moqt claim does not judge.
+	MOQT *MOQTAction
 	// Location is where the client was found to be, for catgeoiso3166. Nil means the recipient does not locate
 	// clients, and the claim is ignored (decision 0021).
 	Location *Location

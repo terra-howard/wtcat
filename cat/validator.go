@@ -59,6 +59,10 @@ type Validator struct {
 	// acceptable; one whose typ is not listed is refused as unsupported, so that, for example, a DPoP proof typed
 	// "dpop-proof+cwt" is never taken for a CAT. Empty means DefaultTypes (decision 0033).
 	Types []string
+	// MOQTClaimKey and MOQTRevalKey are the claim keys of draft-ietf-moq-c4m's moqt and moqt-reval claims, which IANA
+	// has not assigned yet. Zero means DefaultMOQTClaimKey and DefaultMOQTRevalKey (decision 0035).
+	MOQTClaimKey int64
+	MOQTRevalKey int64
 	// DecryptionKeys, if set, returns the AES-GCM key for an encrypted token's kid, bound to the issuer it belongs to
 	// (decision 0030). Nil means this recipient does not decrypt, and encrypted tokens are refused as unsupported.
 	DecryptionKeys KeyFunc
@@ -190,7 +194,14 @@ func (v *Validator) finish(msg *cwt.Message, issuer string, encrypted bool, req 
 	if err := checkDeterministic(msg.Payload); err != nil {
 		return nil, fmt.Errorf("claim set: %w", err)
 	}
-	claims, err := decodeClaimsIn(msg.Payload, encrypted)
+	keys := defaultClaimKeys
+	if v.MOQTClaimKey != 0 {
+		keys.moqt = v.MOQTClaimKey
+	}
+	if v.MOQTRevalKey != 0 {
+		keys.moqtReval = v.MOQTRevalKey
+	}
+	claims, err := decodeClaimsIn(msg.Payload, encrypted, keys)
 	if err != nil {
 		return nil, err
 	}
@@ -237,6 +248,9 @@ func (v *Validator) accept(claims *Claims, issuer string, req *Request, token st
 		return err
 	}
 	if err := checkGeohash(claims, req); err != nil {
+		return err
+	}
+	if err := checkMOQT(claims, req); err != nil {
 		return err
 	}
 	if err := checkConnection(claims, req); err != nil {
