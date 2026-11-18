@@ -41,7 +41,10 @@ model-checking such designs with TLA+ and its model checker, TLC, be worth it he
    invariant `OneConnection` is carried by `TestCatreplayConcurrentUseAcceptsOnce`, which checks the same property
    for single use over HTTP today, and fails against a non-atomic `Replay`.
 5. Running TLC needs Java and the TLA+ tools. How they are installed on the build machine and in CI is the
-   owner's choice, and is recorded here when made.
+   owner's choice. **Made 2026-11-18:** on the build machine, the owner installed OpenJDK 21 from the
+   distribution's packages, and `tla2tools.jar` v1.7.4 sits in the agent's home directory, with the version and
+   checksum recorded in `specs/README.md`. TLC does not run in CI yet. Whether it should waits until a second model
+   shows the practice is worth keeping.
 
 ## Consequences
 
