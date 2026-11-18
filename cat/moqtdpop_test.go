@@ -2,9 +2,11 @@ package cat_test
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
 	"errors"
 	"maps"
@@ -55,6 +57,8 @@ type dpopCase struct {
 	claims   map[any]any
 	untagged bool
 	corrupt  bool
+	// sign, when set, signs the Sig_structure in place of ES256 with signer or priv.
+	sign func(toBeSigned []byte) []byte
 }
 
 func newDPoPCase(t *testing.T) *dpopCase {
@@ -102,14 +106,20 @@ func (d *dpopCase) proof(t *testing.T, token string) []byte {
 	if signer == nil {
 		signer = d.priv
 	}
-	digest := sha256.Sum256(enc(t, []any{"Signature1", protected, []byte{}, payload}))
-	r, s, err := ecdsa.Sign(rand.Reader, signer, digest[:])
-	if err != nil {
-		t.Fatal(err)
+	toBeSigned := enc(t, []any{"Signature1", protected, []byte{}, payload})
+	var sig []byte
+	if d.sign != nil {
+		sig = d.sign(toBeSigned)
+	} else {
+		digest := sha256.Sum256(toBeSigned)
+		r, s, err := ecdsa.Sign(rand.Reader, signer, digest[:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		sig = make([]byte, 64)
+		r.FillBytes(sig[:32])
+		s.FillBytes(sig[32:])
 	}
-	sig := make([]byte, 64)
-	r.FillBytes(sig[:32])
-	s.FillBytes(sig[32:])
 	if d.corrupt {
 		sig[10] ^= 1
 	}
@@ -118,6 +128,80 @@ func (d *dpopCase) proof(t *testing.T, token string) []byte {
 		return enc(t, body)
 	}
 	return enc(t, cbor.Tag{Number: 18, Content: body})
+}
+
+// kccsCOSEKey is the COSE_Key in a case's kccs header, to change in place.
+func kccsCOSEKey(d *dpopCase) map[int64]any {
+	return d.header[14].(map[int64]any)[8].(map[int64]any)[1].(map[int64]any)
+}
+
+// thumbprints computes a COSE_Key's two thumbprints here, separately from the package's own code: the SHA-256 of the
+// deterministic encoding of its required parameters (RFC 9679), and of its JWK's required members (RFC 7638).
+func thumbprints(t *testing.T, key map[int64]any) (ckt, jkt []byte) {
+	required := map[int64]any{1: key[1], -1: key[-1], -2: key[-2]}
+	b64 := func(k int64) string { return base64.RawURLEncoding.EncodeToString(key[k].([]byte)) }
+	var jwk string
+	switch key[-1] {
+	case 2:
+		required[-3] = key[-3]
+		jwk = `{"crv":"P-384","kty":"EC","x":"` + b64(-2) + `","y":"` + b64(-3) + `"}`
+	case 6:
+		jwk = `{"crv":"Ed25519","kty":"OKP","x":"` + b64(-2) + `"}`
+	default:
+		t.Fatalf("no thumbprint for crv %v here", key[-1])
+	}
+	sorted, err := cbor.EncOptions{Sort: cbor.SortCoreDeterministic}.EncMode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := sorted.Marshal(required) // enc does not sort map keys, and RFC 9679 needs them sorted
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := sha256.Sum256(encoded)
+	j := sha256.Sum256([]byte(jwk))
+	return c[:], j[:]
+}
+
+// useP384 makes a case's proof ES384, by a new P-384 key, bound by both thumbprints.
+func useP384(t *testing.T, d *dpopCase) {
+	priv, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pt, err := priv.PublicKey.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := map[int64]any{1: 2, -1: 2, -2: pt[1:49], -3: pt[49:]}
+	useKey(t, d, -35, key, func(b []byte) []byte {
+		digest := sha512.Sum384(b)
+		r, s, err := ecdsa.Sign(rand.Reader, priv, digest[:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		sig := make([]byte, 96)
+		r.FillBytes(sig[:48])
+		s.FillBytes(sig[48:])
+		return sig
+	})
+}
+
+// useEd25519 makes a case's proof EdDSA, by a new Ed25519 key, bound by both thumbprints.
+func useEd25519(t *testing.T, d *dpopCase) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useKey(t, d, -8, map[int64]any{1: 1, -1: 6, -2: []byte(pub)}, func(b []byte) []byte { return ed25519.Sign(priv, b) })
+}
+
+func useKey(t *testing.T, d *dpopCase, alg int, key map[int64]any, sign func([]byte) []byte) {
+	ckt, jkt := thumbprints(t, key)
+	d.header[1] = alg
+	d.header[14] = map[int64]any{8: map[int64]any{1: key}}
+	d.cnf = map[int64]any{5: ckt, 323: jkt}
+	d.sign = sign
 }
 
 func dpopValidator() *cat.Validator {
@@ -177,7 +261,47 @@ func TestMOQTDPoP(t *testing.T) {
 		{"a CAT's typ", func(d *dpopCase) { d.header[16] = "CAT" }, nil, cat.ErrProof},
 		{"no alg", func(d *dpopCase) { d.header[1] = nil }, nil, cat.ErrProof},
 		{"a symmetric alg", func(d *dpopCase) { d.header[1] = 5 }, nil, cat.ErrProof},
-		{"ES384, not supported yet", func(d *dpopCase) { d.header[1] = -35 }, nil, cat.ErrProof},
+		{"ES384 with a P-256 key", func(d *dpopCase) { d.header[1] = -35 }, nil, cat.ErrProof},
+		{"EdDSA with a P-256 key", func(d *dpopCase) { d.header[1] = -8 }, nil, cat.ErrProof},
+		{"ES256 with a P-384 key", func(d *dpopCase) { useP384(t, d); d.header[1] = -7 }, nil, cat.ErrProof},
+		{"ES256 with an Ed25519 key", func(d *dpopCase) { useEd25519(t, d); d.header[1] = -7 }, nil, cat.ErrProof},
+		{"ES384 with an Ed25519 key", func(d *dpopCase) { useEd25519(t, d); d.header[1] = -35 }, nil, cat.ErrProof},
+		{"EdDSA with a P-384 key", func(d *dpopCase) { useP384(t, d); d.header[1] = -8 }, nil, cat.ErrProof},
+		{"a good ES384 proof, by ckt", func(d *dpopCase) { useP384(t, d) }, nil, nil},
+		{"a good ES384 proof, by jkt", func(d *dpopCase) { useP384(t, d); d.cnf = map[int64]any{323: d.cnf[323]} }, nil, nil},
+		{"a good EdDSA proof, by ckt", func(d *dpopCase) { useEd25519(t, d) }, nil, nil},
+		{"a good EdDSA proof, by jkt", func(d *dpopCase) { useEd25519(t, d); d.cnf = map[int64]any{323: d.cnf[323]} }, nil, nil},
+		{"an ES384 proof with a corrupted signature", func(d *dpopCase) { useP384(t, d); d.corrupt = true }, nil, cat.ErrProof},
+		{"an EdDSA proof with a corrupted signature", func(d *dpopCase) { useEd25519(t, d); d.corrupt = true }, nil, cat.ErrProof},
+		{"an ES384 signature of ES256's length", func(d *dpopCase) {
+			useP384(t, d)
+			sign := d.sign
+			d.sign = func(b []byte) []byte { return sign(b)[:64] }
+		}, nil, cat.ErrProof},
+		{"an EdDSA signature one byte short", func(d *dpopCase) {
+			useEd25519(t, d)
+			sign := d.sign
+			d.sign = func(b []byte) []byte { return sign(b)[:63] }
+		}, nil, cat.ErrProof},
+		{"an Ed448 curve label", func(d *dpopCase) { useEd25519(t, d); kccsCOSEKey(d)[-1] = 7 }, nil, cat.ErrProof},
+		{"an Ed25519 x of the wrong length", func(d *dpopCase) {
+			useEd25519(t, d)
+			k := kccsCOSEKey(d)
+			k[-2] = k[-2].([]byte)[1:]
+		}, nil, cat.ErrProof},
+		{"a P-384 key with P-256's coordinate length", func(d *dpopCase) {
+			useP384(t, d)
+			k := kccsCOSEKey(d)
+			k[-2], k[-3] = k[-2].([]byte)[:32], k[-3].([]byte)[:32]
+		}, nil, cat.ErrProof},
+		{"a P-384 point not on the curve", func(d *dpopCase) {
+			useP384(t, d)
+			k := kccsCOSEKey(d)
+			y := append([]byte{}, k[-3].([]byte)...)
+			y[47] ^= 1
+			k[-3] = y
+		}, nil, cat.ErrProof},
+		{"an Ed25519 key with its private part", func(d *dpopCase) { useEd25519(t, d); kccsCOSEKey(d)[-4] = make([]byte, 32) }, nil, cat.ErrProof},
 		{"no kccs", func(d *dpopCase) { d.header[14] = nil }, nil, cat.ErrProof},
 		{"kccs only in the unprotected header", func(d *dpopCase) {
 			d.unprot[14] = d.header[14]

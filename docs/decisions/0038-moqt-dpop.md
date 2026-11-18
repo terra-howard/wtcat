@@ -81,3 +81,20 @@ Paraphrased, draft-ietf-moq-c4m section "DPoP for MOQT":
 3. `Validator.ProofReplay`, if set, is called after every other check but `catreplay`'s, with `until` the proof's
    `iat` plus the window, when `catdpop` asks for replay detection.
 4. Tests build proofs with the Appendix A ES256 key and check the draft's example `ckt`.
+
+## Update, 2026-11-18: ES384 and EdDSA
+
+The draft recommends ES384 and EdDSA beside the required ES256, and the decision above left them as the next step.
+They are now supported:
+
+- **ES384** signs with an EC2 key on P-384 (`crv` 2), 48-byte coordinates, SHA-384, and a 96-byte signature.
+- **EdDSA** signs with an OKP key on Ed25519 (`kty` 1, `crv` 6), a 32-byte `x`, and a 64-byte signature over the
+  Sig_structure itself. Ed448 is refused: the draft names only EdDSA, and no client in sight needs it.
+- **Each algorithm goes with one key type and curve.** The `alg` must be the one of the key in `kccs`, so ES256 with
+  a P-384 key, or EdDSA with an EC2 key, is refused, as a symmetric or unknown `alg` already was.
+- **Thumbprints of the new keys.** The COSE Key Thumbprint covers `kty`, `crv` and `x` for an OKP key (RFC 9679
+  section 4.1). The `jkt` of an Ed25519 key is the RFC 8037 JWK Thumbprint, of `crv`, `kty` and `x`, which the
+  package's RFC 7638 code now also computes for `kty` "OKP". HTTP proofs still accept only ES256 and PS256 keys.
+- **Checked against values from elsewhere** (task 76): RFC 9679 section 6 and RFC 8037 appendix A.3, and, where no
+  published example exists, thumbprints computed in Python from the key bytes.
+
