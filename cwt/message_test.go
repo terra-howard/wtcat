@@ -277,3 +277,43 @@ func FuzzVerifyMessage(f *testing.F) {
 		}
 	})
 }
+
+// TestVerifyMessageReportsTyp checks the typ header (RFC 9596, decision 0033): accepted in either header, reported
+// as sent for a text string and as "#" and a number for a content format, and malformed in any other form.
+func TestVerifyMessageReportsTyp(t *testing.T) {
+	lookup := func([]byte) (cwt.Key, error) { return cwt.Key{Algorithm: cwt.HMAC256x256, Material: testKey}, nil }
+	for _, tc := range []struct {
+		name        string
+		protected   map[int64]any
+		unprotected map[int64]any
+		want        string
+		err         error
+	}{
+		{"absent", map[int64]any{1: 5}, map[int64]any{}, "", nil},
+		{"protected text", map[int64]any{1: 5, 16: "CAT"}, map[int64]any{}, "CAT", nil},
+		{"unprotected text", map[int64]any{1: 5}, map[int64]any{16: "application/cwt"}, "application/cwt", nil},
+		{"a content format", map[int64]any{1: 5, 16: 61}, map[int64]any{}, "#61", nil},
+		{"a byte string", map[int64]any{1: 5, 16: []byte("CAT")}, map[int64]any{}, "", cwt.ErrMalformed},
+		{"a negative integer", map[int64]any{1: 5, 16: -1}, map[int64]any{}, "", cwt.ErrMalformed},
+		{"in both headers", map[int64]any{1: 5, 16: "CAT"}, map[int64]any{16: "CAT"}, "", cwt.ErrMalformed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := defaultMac0(t)
+			m.protectedRaw = encode(t, tc.protected)
+			m.unprotected = tc.unprotected
+			msg, err := cwt.VerifyMessage(m.build(t), lookup)
+			if tc.err != nil {
+				if !errors.Is(err, tc.err) {
+					t.Fatalf("got %v, want %v", err, tc.err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("VerifyMessage: %v", err)
+			}
+			if msg.Type != tc.want {
+				t.Fatalf("Type = %q, want %q", msg.Type, tc.want)
+			}
+		})
+	}
+}

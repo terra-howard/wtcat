@@ -33,6 +33,7 @@ type multiMessage struct {
 	payload      []byte
 	macTag       []byte // a COSE_Mac's tag
 	parties      []party
+	typ          string // the body's typ header (decision 0033)
 }
 
 // coseTagOf returns the COSE tag of a token, looking through a CWT tag, or 0 if it has none. It does not report
@@ -87,6 +88,9 @@ func parseMulti(token []byte) (*multiMessage, error) {
 	}
 	alg, hasAlg, kid, err := checkHeaders(protected, unprotected)
 	if err != nil {
+		return nil, err
+	}
+	if msg.typ, err = headerType(protected, unprotected); err != nil {
 		return nil, err
 	}
 	if kid != nil {
@@ -191,7 +195,10 @@ func parseParty(item cbor.RawMessage, recipient bool) (party, error) {
 		return p, malformed("signature: %v", err)
 	}
 	if !recipient {
-		p.alg, p.hasAlg, p.kid, err = checkHeaders(protected, unprotected)
+		if p.alg, p.hasAlg, p.kid, err = checkHeaders(protected, unprotected); err != nil {
+			return p, err
+		}
+		_, err = headerType(protected, unprotected) // a signer's typ is checked for form and otherwise ignored
 		return p, err
 	}
 	return p, checkRecipient(&p, protected, unprotected)
@@ -252,7 +259,7 @@ func verifyMulti(token []byte, lookup KeyLookup) (*Message, error) {
 			return nil, err
 		}
 		if verified == nil {
-			verified = &Message{Algorithm: key.Algorithm, KID: p.kid, Protected: msg.protectedRaw, Payload: msg.payload}
+			verified = &Message{Algorithm: key.Algorithm, KID: p.kid, Protected: msg.protectedRaw, Payload: msg.payload, Type: msg.typ}
 		}
 	}
 	if verified == nil {

@@ -1,6 +1,7 @@
 package cwt
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/fxamacker/cbor/v2"
@@ -17,6 +18,7 @@ const (
 const (
 	labelAlg = 1
 	labelKID = 4
+	labelTyp = 16 // RFC 9596; decision 0033
 )
 
 // coseMessage is a parsed single-recipient COSE message (COSE_Mac0 or COSE_Sign1).
@@ -28,6 +30,7 @@ type coseMessage struct {
 	payload      []byte
 	tag          []byte // the MAC tag or the signature
 	coseTag      uint64 // the COSE tag found (17 or 18), or 0 for an untagged message
+	typ          string // the typ header, as headerType formats it; empty when absent
 }
 
 // parseCOSE parses a token that should be a COSE message with the given tag, applying decision 0008's rules for
@@ -128,6 +131,9 @@ func parseMessage(token []byte, wantTag uint64) (*coseMessage, error) {
 	if msg.alg, msg.hasAlg, msg.kid, err = checkHeaders(protected, unprotected); err != nil {
 		return nil, err
 	}
+	if msg.typ, err = headerType(protected, unprotected); err != nil {
+		return nil, err
+	}
 	return msg, nil
 }
 
@@ -166,7 +172,7 @@ func decodeHeader(data []byte, isProtected bool) (map[int64]cbor.RawMessage, err
 func checkHeaders(protected, unprotected map[int64]cbor.RawMessage) (alg Algorithm, hasAlg bool, kid []byte, err error) {
 	for _, h := range []map[int64]cbor.RawMessage{protected, unprotected} {
 		for label := range h {
-			if label != labelAlg && label != labelKID {
+			if label != labelAlg && label != labelKID && label != labelTyp {
 				return 0, false, nil, unsupported("header parameter %d is not understood", label)
 			}
 		}
@@ -200,6 +206,33 @@ func checkHeaders(protected, unprotected map[int64]cbor.RawMessage) (alg Algorit
 		kid, err = decodeKID(rawKID)
 	}
 	return alg, hasAlg, kid, err
+}
+
+// headerType returns the typ header (RFC 9596) from whichever header holds it: a text string as it is, an unsigned
+// integer (a CoAP content format) in decimal after "#", so that it can never equal a media type, and "" when there
+// is none (decision 0033). checkHeaders has already refused a typ in both headers.
+func headerType(protected, unprotected map[int64]cbor.RawMessage) (string, error) {
+	raw, ok := protected[labelTyp]
+	if !ok {
+		if raw, ok = unprotected[labelTyp]; !ok {
+			return "", nil
+		}
+	}
+	switch majorType(raw) {
+	case majorText:
+		var s string
+		if err := decMode.Unmarshal(raw, &s); err != nil {
+			return "", malformed("typ: %v", err)
+		}
+		return s, nil
+	case majorUnsigned:
+		var n uint64
+		if err := decMode.Unmarshal(raw, &n); err != nil {
+			return "", malformed("typ: %v", err)
+		}
+		return fmt.Sprintf("#%d", n), nil
+	}
+	return "", malformed("typ is neither a text string nor an unsigned integer")
 }
 
 func decodeKID(raw cbor.RawMessage) ([]byte, error) {
