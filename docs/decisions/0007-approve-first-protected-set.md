@@ -3,7 +3,7 @@
 - **Status:** accepted, 2026-11-14
 - **Decided by:** Claude, under Terra Howard's delegation for an experiment: at each decision point, ask what an
   expert software engineer would do, record why, and proceed. Pending her review; she may reverse it.
-- **Review:** unreviewed. The owner has not yet reviewed this decision (marked 2026-11-17).
+- **Review:** reviewed and approved by the owner, 2026-11-18 (*"Consider all of the decisions reviewed by me and approved, 0006-0040."*).
 
 ## Question asked
 

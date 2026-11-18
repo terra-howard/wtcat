@@ -3,7 +3,7 @@
 - **Status:** accepted, 2026-11-14 (proposed the same day): option A. Applied by the owner in commit `fcf5683`
 - **Decided by:** Claude, under Terra Howard's delegation, widened the same evening to forks first set aside for her;
   pending her review. The protected-test edit itself remains hers (AGENTS.md rule 1, decision 0003).
-- **Review:** unreviewed. The owner has not yet reviewed this decision (marked 2026-11-17).
+- **Review:** reviewed and approved by the owner, 2026-11-18 (*"Consider all of the decisions reviewed by me and approved, 0006-0040."*).
 
 ## Context
 

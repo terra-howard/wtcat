@@ -3,7 +3,7 @@
 - **Status:** accepted, 2026-11-18
 - **Decided by:** Terra Howard, that mutation testing runs on pull requests' changes and that the full runs are made to
   survive (*"Yes, let's do that proposal"*). Its shape was chosen by Claude under her delegation.
-- **Review:** unreviewed. The owner has not yet reviewed this decision (marked 2026-11-18).
+- **Review:** reviewed and approved by the owner, 2026-11-18 (*"Consider all of the decisions reviewed by me and approved, 0006-0040."*).
 
 ## Question asked
 
