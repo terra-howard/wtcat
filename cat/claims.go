@@ -37,6 +37,8 @@ type Claims struct {
 	headers    []headerMatch    // cath (315)
 	countries  []string         // catgeoiso3166 (316)
 	geohashes  []string         // geohash (282), lower case; empty but not nil for an empty array
+	geocoords  []geocoord       // catgeocoord (317)
+	encrypted  bool             // the claim set arrived in an encrypted token (decision 0030)
 	tpk        []byte           // cattpk (319)
 	dpopWindow *uint64          // catdpop (321): its window setting, in seconds
 	catif      cbor.RawMessage  // catif (322) as received, parsed only for a response to a refusal
@@ -66,6 +68,7 @@ const (
 	claimCti           = 7
 	claimCnf           = 8
 	claimGeohash       = 282
+	claimCatgeocoord   = 317
 	claimCatreplay     = 308
 	claimCatv          = 310
 	claimCatnip        = 311
@@ -124,7 +127,11 @@ func unsupported(format string, args ...any) error {
 
 // decodeClaims decodes a verified payload as a CAT claim set. Claims it does not know are ignored, whatever their
 // key or value (sections 4.3.1.5 and 4.5); claims it knows must have the right type and no tag (section 4.5).
-func decodeClaims(payload []byte) (*Claims, error) {
+func decodeClaims(payload []byte) (*Claims, error) { return decodeClaimsIn(payload, false) }
+
+// decodeClaimsIn is decodeClaims for a claim set that may have arrived encrypted, which lifts the limits sections
+// 4.6.9, 4.6.15 and 4.6.16 set on unencrypted claims (decision 0030).
+func decodeClaimsIn(payload []byte, encrypted bool) (*Claims, error) {
 	if len(payload) > 0 && majorType(payload) == majorTag {
 		return nil, unsupported("nested CWT")
 	}
@@ -135,7 +142,7 @@ func decodeClaims(payload []byte) (*Claims, error) {
 	if m == nil {
 		return nil, malformed("claim set is not a map")
 	}
-	c := &Claims{Version: 1}
+	c := &Claims{Version: 1, encrypted: encrypted}
 	for k, value := range m {
 		var key int64
 		switch v := k.(type) {
@@ -163,7 +170,7 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	switch key {
 	case claimIss, claimSub, claimAud, claimExp, claimNbf, claimIat, claimCti, claimCnf, claimCatreplay, claimCatv,
 		claimCatnip, claimCatu, claimCatm, claimCatalpn, claimCath, claimCatgeoiso3166, claimCattpk, claimCatdpop,
-		claimCatif, claimCatr, claimGeohash:
+		claimCatif, claimCatr, claimGeohash, claimCatgeocoord:
 	default:
 		return nil // a claim this package does not know, or catifdata, which only means something in a minted token
 	}
@@ -199,7 +206,7 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	case claimCatu:
 		c.uri, err = decodeCatu(value)
 	case claimCatnip:
-		c.network, err = decodeCatnip(value)
+		c.network, err = decodeCatnip(value, c.encrypted)
 	case claimCatr:
 		c.catr = value
 	case claimCatif:
@@ -211,7 +218,9 @@ func (c *Claims) decodeClaim(key int64, value cbor.RawMessage) error {
 	case claimCatgeoiso3166:
 		c.countries, err = decodeCountries(value)
 	case claimGeohash:
-		c.geohashes, err = decodeGeohashes(value)
+		c.geohashes, err = decodeGeohashes(value, c.encrypted)
+	case claimCatgeocoord:
+		c.geocoords, err = decodeGeocoords(value, c.encrypted)
 	case claimCatreplay:
 		if majorType(value) != majorUnsigned {
 			return malformed("claim 308 (catreplay) is not an unsigned integer")

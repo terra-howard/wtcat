@@ -174,8 +174,8 @@ var issueEncoder = func() cbor.EncMode {
 // returns nil and no error when there is nothing to do: no catr, no Issuance, an unknown renewal type, or a time
 // before the renewal deadline. A catr it cannot follow gives ErrNoRenewal.
 func (v *Validator) Renew(t *Token, now time.Time) (*Renewal, error) {
-	if v.Issuance == nil || t == nil || t.Claims.catr == nil {
-		return nil, nil
+	if v.Issuance == nil || t == nil || t.Claims.catr == nil || t.Encrypted {
+		return nil, nil // an encrypted token is not renewed: the renewal would carry its claims in the clear
 	}
 	if v.Issuance.Key == nil {
 		return nil, noRenewal("Issuance has no key function")
