@@ -1,6 +1,9 @@
 package catmoqt
 
-import "errors"
+import (
+	"errors"
+	"math/bits"
+)
 
 var errTruncated = errors.New("truncated variable-length integer")
 
@@ -11,11 +14,7 @@ func readVarint(b []byte) (v uint64, rest []byte, err error) {
 	if len(b) == 0 {
 		return 0, nil, errTruncated
 	}
-	ones := 0
-	for ones < 8 && b[0]&(0x80>>ones) != 0 {
-		ones++
-	}
-	n := ones + 1
+	n := bits.LeadingZeros8(^b[0]) + 1 // the leading ones, plus the first byte
 	if len(b) < n {
 		return 0, nil, errTruncated
 	}

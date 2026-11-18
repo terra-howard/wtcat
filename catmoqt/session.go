@@ -106,9 +106,10 @@ func (s *Session) Authorize(r Request) (*Grant, error) {
 			first = err
 		}
 	}
-	switch {
-	case first == nil:
+	if first == nil {
 		return nil, refuse(setup, RequestUnauthorized, SessionUnauthorized, errors.New("no CAT authorizes the action"))
+	}
+	switch {
 	case errors.Is(first, cat.ErrExpired):
 		return nil, refuse(setup, RequestExpiredAuthToken, SessionExpiredAuthToken, first)
 	case errors.Is(first, cwt.ErrMalformed):
@@ -142,27 +143,27 @@ func (s *Session) resolve(raw [][]byte, setup bool) ([]Token, error) {
 			return nil, sessionError(SessionProtocolViolation, "DELETE or USE_ALIAS in SETUP")
 		}
 		known, registered := s.cache[t.alias]
+		byAlias := t.aliasType == aliasDelete || t.aliasType == aliasUse
+		if byAlias && !registered {
+			return nil, sessionError(SessionUnknownAuthTokenAlias, "alias %d is not registered", t.alias)
+		}
+		if t.aliasType == aliasRegister && registered {
+			return nil, sessionError(SessionDuplicateAuthTokenAlias, "alias %d is already registered", t.alias)
+		}
 		switch t.aliasType {
-		case aliasDelete, aliasUse:
-			if !registered {
-				return nil, sessionError(SessionUnknownAuthTokenAlias, "alias %d is not registered", t.alias)
-			}
-			if t.aliasType == aliasUse {
-				tokens = append(tokens, known)
-				continue
-			}
+		case aliasDelete:
 			delete(s.cache, t.alias)
 			s.size -= entrySize + uint64(len(known.Value))
+		case aliasUse:
+			tokens = append(tokens, known)
 		case aliasRegister:
-			if registered {
-				return nil, sessionError(SessionDuplicateAuthTokenAlias, "alias %d is already registered", t.alias)
-			}
 			need := entrySize + uint64(len(t.token.Value))
-			switch {
-			case s.size <= s.MaxCacheSize && need <= s.MaxCacheSize-s.size: // the first, should the limit be lowered
+			// In this order, so that neither subtraction wraps, even should the limit be lowered.
+			fits := need <= s.MaxCacheSize && s.size <= s.MaxCacheSize-need
+			if fits {
 				s.cache[t.alias] = Token{Type: t.token.Type, Value: slices.Clone(t.token.Value)}
 				s.size += need
-			case !setup:
+			} else if !setup {
 				return nil, sessionError(SessionAuthTokenCacheOverflow, "registering alias %d would pass the cache limit of %d bytes", t.alias, s.MaxCacheSize)
 			} // in SETUP, a REGISTER past the limit is used by value
 			tokens = append(tokens, t.token)
