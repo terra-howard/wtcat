@@ -75,6 +75,10 @@ func DecryptMessage(token []byte, lookup KeyLookup) (*Message, error) {
 	if err != nil {
 		return nil, err
 	}
+	typ, err := headerType(protected, unprotected)
+	if err != nil {
+		return nil, err
+	}
 	switch {
 	case parts[2][0] == 0xf6:
 		return nil, unsupported("detached ciphertext")
@@ -120,7 +124,7 @@ func DecryptMessage(token []byte, lookup KeyLookup) (*Message, error) {
 	if err != nil {
 		return nil, ErrVerification
 	}
-	return &Message{Algorithm: key.Algorithm, KID: kid, Protected: protectedRaw, Payload: plaintext}, nil
+	return &Message{Algorithm: key.Algorithm, KID: kid, Protected: protectedRaw, Payload: plaintext, Type: typ}, nil
 }
 
 // checkEncrypt0Headers applies decision 0008's header rules to a COSE_Encrypt0, with the IV header (5) allowed and

@@ -23,6 +23,9 @@ type Message struct {
 	KID       []byte    // nil when the message has no kid
 	Protected []byte    // the protected header exactly as received: an encoded map, or empty
 	Payload   []byte    // not interpreted
+	// Type is the message's typ header (RFC 9596): a media type as sent, or "#" and a CoAP content format in
+	// decimal, or empty when there is none (decision 0033). This package does not judge it.
+	Type string
 }
 
 // VerifyMessage verifies a COSE_Mac0 or COSE_Sign1 message, tagged or not, with the key that lookup returns for
@@ -71,5 +74,5 @@ func VerifyMessage(token []byte, lookup KeyLookup) (*Message, error) {
 	if err := verifyWith(msg, key.Algorithm, key.Material); err != nil {
 		return nil, err
 	}
-	return &Message{Algorithm: key.Algorithm, KID: msg.kid, Protected: msg.protectedRaw, Payload: msg.payload}, nil
+	return &Message{Algorithm: key.Algorithm, KID: msg.kid, Protected: msg.protectedRaw, Payload: msg.payload, Type: msg.typ}, nil
 }
