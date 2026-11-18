@@ -6,6 +6,36 @@ Before 1.0, a minor version may change the API.
 
 ## [Unreleased]
 
+### Added
+
+- **MoQT support**, following draft-ietf-moq-c4m (decisions 0033 and 0035 to 0038):
+  - the COSE `typ` header, reported as `cwt.Message.Type` and checked against `cat.Validator.Types`;
+  - the `moqt` claim, judged for a `cat.Request` whose `MOQT` field describes the action, with `cat.ErrMOQT`, and
+    its claim key configurable while IANA has not assigned one;
+  - `moqt-reval`, reported as `Token.Revalidate` and bounded by `Validator.MinRevalidation`;
+  - `catreplay` as one connection over MOQT, with `Connection.ID` and `Validator.BindConnection`;
+  - DPoP proofs as CWTs, checked for each MOQT action: `cnf` with `ckt` (RFC 9679), `MOQTAction.Proof`,
+    `Validator.ActxKey` and `AthKey`, which have no defaults, and `Validator.ProofReplay`, for ES256, ES384 and
+    EdDSA proofs.
+- **Encrypted tokens** (decision 0030): `cwt.DecryptMessage` for COSE_Encrypt0 with AES-GCM, and
+  `cat.Validator.DecryptionKeys`. `catgeocoord` is enforced, and the limits on unencrypted `catnip` and `geohash`
+  do not apply to encrypted claims.
+- **Several signers or recipients** (decision 0029): `cwt.VerifyMessage` accepts COSE_Sign and COSE_Mac, and
+  `Message.KID` names the signer or recipient that verified.
+- **`geohash`** is enforced when `Request.Location` has coordinates (decision 0027).
+- Tests against tokens from three other CAT implementations (decision 0026), benchmarks for the hot paths, TLA+
+  models of the designs that share state (`specs/`, decision 0032), mutation testing of each pull request's changes
+  (decision 0034), Dependabot for Go modules and GitHub Actions (decision 0025), and a NOTICE file.
+
+### Changed
+
+- A token whose COSE `typ` is present and is not one of `Validator.Types`, by default "CAT", is now refused as
+  unsupported (decision 0033).
+- A `cnf` claim may now name `ckt`, which binds MOQT proofs; a token naming it is refused over HTTP with
+  `cat.ErrProof`, where it was refused as unsupported (decision 0038).
+- Full mutation runs cap each process's memory and use two workers, and a run in which no mutant lived is refused
+  as vacuous (decisions 0028 and 0034).
+
 ## [0.1.0] - 2026-11-17
 
 The first public release.
