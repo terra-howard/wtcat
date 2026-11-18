@@ -232,9 +232,24 @@ func thumbprint(jwk map[string]json.RawMessage) ([]byte, error) {
 	return sum[:], nil
 }
 
+// dpopWindow is how far a DPoP proof's iat may be from now, either way: catdpop's window, else DPoPWindow, else
+// DefaultDPoPWindow.
+func (v *Validator) dpopWindow(c *Claims) time.Duration {
+	if c.dpopWindow != nil {
+		return time.Duration(min(*c.dpopWindow, uint64(math.MaxInt64/int64(time.Second)))) * time.Second
+	}
+	if v.DPoPWindow != 0 {
+		return v.DPoPWindow
+	}
+	return DefaultDPoPWindow
+}
+
 // checkConfirmation checks the jkt of a cnf claim against the DPoP proof of the request (RFC 9449 Section 4.3,
 // decision 0020).
 func (v *Validator) checkConfirmation(c *Claims, req *Request, token string, now time.Time) error {
+	if c.ckt != nil {
+		return fmt.Errorf("%w: the token's cnf names a ckt, which binds MOQT proofs; HTTP proofs are checked by jkt", ErrProof)
+	}
 	if c.jkt == nil {
 		if req != nil && req.ViaDPoPScheme {
 			return fmt.Errorf("%w: the token arrived in the DPoP scheme but has no cnf jkt", ErrProof)
@@ -265,13 +280,7 @@ func (v *Validator) checkConfirmation(c *Claims, req *Request, token string, now
 	if err1 != nil || err2 != nil || got != want {
 		return fmt.Errorf("%w: htu does not match the request URI", ErrProof)
 	}
-	window := v.DPoPWindow
-	if window == 0 {
-		window = DefaultDPoPWindow
-	}
-	if c.dpopWindow != nil {
-		window = time.Duration(min(*c.dpopWindow, uint64(math.MaxInt64/int64(time.Second)))) * time.Second
-	}
+	window := v.dpopWindow(c)
 	if age := float64(now.UnixNano())/1e9 - p.iat; math.IsNaN(age) || math.Abs(age) > window.Seconds() {
 		return fmt.Errorf("%w: iat is outside the %v window", ErrProof, window)
 	}

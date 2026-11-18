@@ -6,6 +6,10 @@ taken from the working group's editor's copy at <https://github.com/moq-wg/CAT-4
 Validation" and "MOQT Authorization Scopes". The JSON is the draft's own, with its folded lines unfolded as the appendix instructs, and only the
 sections used here kept.
 
+`cat/moqtdpop_test.go` also quotes two thumbprints of the "Keys" section's ES256 key from the same draft and commit:
+the `ckt` in the example of section "DPoP for MOQT", and the `jkt` of the "DPoP Binding" vector
+`dpop_jwk_binding`.
+
 Licence: these are Code Components of an IETF document. Under the IETF Trust Legal Provisions, section 4, Code
 Components may be used under the Revised BSD License:
 

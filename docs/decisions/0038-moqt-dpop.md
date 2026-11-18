@@ -48,9 +48,9 @@ Paraphrased, draft-ietf-moq-c4m section "DPoP for MOQT":
   are exactly the ones the client sent.
 - **Both confirmation methods, and each one present must match.** `cnf` may carry `ckt`, `jkt` or both. For `jkt`
   over MOQT, the thumbprint is that of the JWK equivalent to the COSE_Key (`crv`, `kty`, `x` and `y` for an EC2
-  key), as the draft says. Over HTTP, proofs are JWTs checked by `jkt` (decision 0020), so a token whose `cnf` has
-  only `ckt` is refused there (`cat.ErrProof`). A `cnf` that names no method this package checks stays
-  unsupported.
+  key), as the draft says. Over HTTP, proofs are JWTs checked by `jkt` (decision 0020), so a token whose `cnf`
+  names `ckt` is refused there (`cat.ErrProof`), since that method cannot be checked against a JWT proof here. A
+  `cnf` that names no method this package checks stays unsupported.
 - **ES256 only, for now.** The draft requires ES256 and recommends ES384 and EdDSA. A proof with another `alg` is
   refused as unsupported (`cat.ErrProof`); the two recommended algorithms are a recorded next step, not a silent
   gap. Symmetric algorithms are refused, as the draft requires.
@@ -67,15 +67,17 @@ Paraphrased, draft-ietf-moq-c4m section "DPoP for MOQT":
   `Validator.ProofReplay(cti, until)` records the proof's `cti` and reports whether it was seen, with `until` the
   proof's `iat` plus the window (task 74). It must be atomic and shared, like `Replay` (decision 0032). Without
   it, nothing is refused for reuse, and replay protection rests on the window, as decisions 0020, 0021 and 0037 do
-  for the other stores. It is called after every other check, so a refused request never uses up a proof.
+  for the other stores. It is called after every other check but `catreplay`'s, which stays last. A proof is made
+  for one action, so using one up on a request that `catreplay` then refuses costs nothing, while the other order
+  would use up the token's `cti` on a request refused for its proof.
 
 ## Decision
 
 1. `cnf` may carry `ckt` (5) as well as `jkt`. Both are 32 bytes. A request must satisfy each method the token
-   names, and over HTTP that means `jkt` only.
+   names. Over HTTP a token naming `ckt` is refused, since an HTTP proof is checked by `jkt` alone.
 2. For a MOQT request and a token with `cnf`: `MOQTAction.Proof` must hold an ES256 COSE_Sign1 proof that passes
    the draft's relay checks, with `actx` at `Validator.ActxKey` and `ath` at `Validator.AthKey`; otherwise
    `cat.ErrProof`, or `cwt.ErrUnsupported` while either key is unset.
-3. `Validator.ProofReplay`, if set, is called last, with `until` the proof's `iat` plus the window, when `catdpop`
-   asks for replay detection.
+3. `Validator.ProofReplay`, if set, is called after every other check but `catreplay`'s, with `until` the proof's
+   `iat` plus the window, when `catdpop` asks for replay detection.
 4. Tests build proofs with the Appendix A ES256 key and check the draft's example `ckt`.
