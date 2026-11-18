@@ -1,0 +1,16 @@
+# Gremlins settings for ./catmoqt, used by .github/workflows/mutation.yml (decision 0039). Run locally with:
+#   go run github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0 unleash --config .github/gremlins/catmoqt.yaml ./catmoqt
+# The thresholds must live in this file: Gremlins v0.6.0 drops --threshold-efficacy and --threshold-mcover given on
+# the command line, because its configuration library returns float flags as strings.
+unleash:
+  integration: true
+  timeout-coefficient: 10
+  workers: 2 # decision 0028: a hosted runner has four CPUs, and each worker runs the whole suite. Never set test-cpu.
+  threshold:
+    efficacy: 97 # measured 100% in task 78d, 45 killed and none living
+    mutant-coverage: 90 # measured 100%; a mutant in a case expression is never covered, so keep conditions out of them
+mutants:
+  invert-logical:
+    enabled: true
+  invert-loopctrl:
+    enabled: true

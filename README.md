@@ -23,6 +23,9 @@ asks. [The tutorial](docs/tutorials/protect-a-server.md) builds this end to end 
 - **`cathttp`** finds tokens in HTTP requests in the order section 4.4 sets, removes each from the URI before
   `catu` is checked, and wraps a handler: refusals, `Cache-Control: private`, renewals, and token-bearing fields
   removed before forwarding.
+- **`catmoqt`** does the same for a MOQT relay, under draft-ietf-moq-c4m and draft-ietf-moq-transport-22, with no
+  MOQT library underneath: it keeps a session's authorization token cache, judges the CATs a request carries, and
+  answers with a grant or the draft's error code.
 
 The `cat` package documentation lists exactly which claims are enforced and which are ignored.
 [The design explanation](docs/explanation/design.md) says what is left out, such as AES-CCM encryption, and why.
