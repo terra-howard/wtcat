@@ -160,6 +160,11 @@ func TestMOQTDPoP(t *testing.T) {
 		{"no proof", func(*dpopCase) {}, func([]byte) *cat.Request { return sportsRequest(nil) }, cat.ErrProof},
 		{"a proof that is not CBOR", func(*dpopCase) {}, func([]byte) *cat.Request { return sportsRequest([]byte{0xff}) }, cat.ErrProof},
 		{"a proof that is not a COSE_Sign1", func(*dpopCase) {}, func([]byte) *cat.Request { return sportsRequest([]byte{0x80}) }, cat.ErrProof},
+		{"a proof under COSE_Mac0's tag", func(*dpopCase) {}, func(p []byte) *cat.Request { return sportsRequest(retag(t, p, 17)) }, cat.ErrProof},
+		{"a protected header not in a byte string", func(*dpopCase) {}, func(p []byte) *cat.Request { return sportsRequest(replacePart(t, p, 0, map[int64]any{1: -7})) }, cat.ErrProof},
+		{"an unprotected header that is not a map", func(*dpopCase) {}, func(p []byte) *cat.Request { return sportsRequest(replacePart(t, p, 1, []any{})) }, cat.ErrProof},
+		{"a payload not in a byte string", func(*dpopCase) {}, func(p []byte) *cat.Request { return sportsRequest(replacePart(t, p, 2, "claims")) }, cat.ErrProof},
+		{"a signature not in a byte string", func(*dpopCase) {}, func(p []byte) *cat.Request { return sportsRequest(replacePart(t, p, 3, []any{})) }, cat.ErrProof},
 		{"ckt of another key", func(d *dpopCase) { d.cnf[5] = make([]byte, 32) }, nil, cat.ErrProof},
 		{"jkt of another key beside the right ckt", func(d *dpopCase) { d.cnf[323] = make([]byte, 32) }, nil, cat.ErrProof},
 		{"signed by another key", func(d *dpopCase) { d.signer = other }, nil, cat.ErrProof},
@@ -200,6 +205,22 @@ func TestMOQTDPoP(t *testing.T) {
 			k[-2] = k[-2].([]byte)[1:]
 			d.header[14] = map[int64]any{8: map[int64]any{1: k}}
 		}, nil, cat.ErrProof},
+		{"x and y split in the wrong place", func(d *dpopCase) {
+			k := coseKey(&d.priv.PublicKey)
+			x, y := k[-2].([]byte), k[-3].([]byte)
+			k[-2], k[-3] = append(append([]byte{}, x...), y[0]), y[1:]
+			d.header[14] = map[int64]any{8: map[int64]any{1: k}}
+		}, nil, cat.ErrProof},
+		{"a compressed point's sign bit for y", func(d *dpopCase) {
+			k := coseKey(&d.priv.PublicKey)
+			k[-3] = true
+			d.header[14] = map[int64]any{8: map[int64]any{1: k}}
+		}, nil, cat.ErrProof},
+		{"kccs cnf with a null COSE_Key", func(d *dpopCase) { d.header[14] = map[int64]any{8: map[int64]any{1: nil}} }, nil, cat.ErrProof},
+		{"a negative iat within a very long window", func(d *dpopCase) {
+			d.claims[6] = -1
+			d.extra = map[any]any{321: map[any]any{0: uint64(1) << 62}}
+		}, nil, nil},
 		{"a point not on the curve", func(d *dpopCase) {
 			k := coseKey(&d.priv.PublicKey)
 			y := append([]byte{}, k[-3].([]byte)...)
@@ -257,6 +278,48 @@ func TestMOQTDPoP(t *testing.T) {
 			}
 			if tc.want != nil && !errors.Is(err, tc.want) {
 				t.Fatalf("got %v, want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+// retag puts a tagged COSE structure under another tag.
+func retag(t *testing.T, proof []byte, number uint64) []byte {
+	var tag cbor.RawTag
+	if err := cbor.Unmarshal(proof, &tag); err != nil {
+		t.Fatal(err)
+	}
+	return enc(t, cbor.Tag{Number: number, Content: tag.Content})
+}
+
+// replacePart replaces one of a tagged COSE_Sign1's four parts.
+func replacePart(t *testing.T, proof []byte, i int, part any) []byte {
+	var tag cbor.RawTag
+	var parts []cbor.RawMessage
+	if err := cbor.Unmarshal(proof, &tag); err != nil {
+		t.Fatal(err)
+	}
+	if err := cbor.Unmarshal(tag.Content, &parts); err != nil {
+		t.Fatal(err)
+	}
+	body := make([]any, 4)
+	for j, p := range parts {
+		body[j] = p
+	}
+	body[i] = part
+	return enc(t, cbor.Tag{Number: 18, Content: body})
+}
+
+// TestCnfAndCatdpopNulls checks a null cnf and a tagged catdpop setting this version does not know: both malformed.
+func TestCnfAndCatdpopNulls(t *testing.T) {
+	for name, claims := range map[string]map[any]any{
+		"a null cnf":                        {8: nil},
+		"a tagged catdpop setting it skips": {8: map[int64]any{323: make([]byte, 32)}, 321: map[any]any{-2: cbor.Tag{Number: 1, Content: 0}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := dpopValidator().ValidateRequest(claimsToken(t, claims), get())
+			if !errors.Is(err, cwt.ErrMalformed) {
+				t.Fatalf("got %v, want malformed", err)
 			}
 		})
 	}

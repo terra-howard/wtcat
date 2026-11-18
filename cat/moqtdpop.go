@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
+
+	"github.com/terra-howard/wtcat/cwt"
 )
 
 // MOQT DPoP proofs (draft-ietf-moq-c4m section "DPoP for MOQT", decision 0038).
@@ -21,7 +23,6 @@ const (
 	headerAlg    = 1
 	headerKCCS   = 14 // RFC 9528
 	headerTyp    = 16
-	algES256     = -7
 )
 
 // moqtProof is what a MOQT DPoP proof says, once its signature has been verified with the key it carries.
@@ -88,18 +89,27 @@ func parseMOQTProof(raw []byte, actxKey, athKey int64) (*moqtProof, error) {
 	if majorType(body) != majorArray || decMode.Unmarshal(body, &parts) != nil || len(parts) != 4 {
 		return nil, errors.New("the proof is not a COSE_Sign1")
 	}
-	protected, err1 := proofBytes(parts[0])
-	payload, err2 := proofBytes(parts[2])
-	sig, err3 := proofBytes(parts[3])
-	if err1 != nil || err2 != nil || err3 != nil || majorType(parts[1]) != majorMap {
-		return nil, errors.New("the proof is not a COSE_Sign1")
+	protected, err := proofBytes(parts[0])
+	if err != nil {
+		return nil, errors.New("the proof's protected header is not in a byte string")
+	}
+	if majorType(parts[1]) != majorMap {
+		return nil, errors.New("the proof's unprotected header is not a map")
+	}
+	payload, err := proofBytes(parts[2])
+	if err != nil {
+		return nil, errors.New("the proof's payload is not in a byte string")
+	}
+	sig, err := proofBytes(parts[3])
+	if err != nil {
+		return nil, errors.New("the proof's signature is not a byte string")
 	}
 	var header map[int64]cbor.RawMessage
 	if decMode.Unmarshal(protected, &header) != nil {
 		return nil, errors.New("the proof's protected header is not a map with integer labels")
 	}
 	var alg int64
-	if a, ok := header[headerAlg]; !ok || decMode.Unmarshal(a, &alg) != nil || alg != algES256 {
+	if a, ok := header[headerAlg]; !ok || decMode.Unmarshal(a, &alg) != nil || alg != int64(cwt.ES256) {
 		return nil, errors.New("the proof's alg is not ES256, the one algorithm supported for MOQT proofs")
 	}
 	var typ string
@@ -150,7 +160,7 @@ func kccsKey(kccs cbor.RawMessage) (*ecdsa.PublicKey, error) {
 	if kccs == nil || decMode.Unmarshal(kccs, &claims) != nil {
 		return nil, errors.New("the proof has no kccs in its protected header")
 	}
-	if decMode.Unmarshal(claims[claimCnf], &cnf) != nil || decMode.Unmarshal(cnf[1], &key) != nil || key == nil {
+	if decMode.Unmarshal(claims[claimCnf], &cnf) != nil || decMode.Unmarshal(cnf[1], &key) != nil {
 		return nil, errors.New("the proof's kccs has no cnf COSE_Key")
 	}
 	if _, ok := key[-4]; ok {
@@ -160,10 +170,12 @@ func kccsKey(kccs cbor.RawMessage) (*ecdsa.PublicKey, error) {
 	if decMode.Unmarshal(key[1], &kty) != nil || kty != 2 || decMode.Unmarshal(key[-1], &crv) != nil || crv != 1 {
 		return nil, errors.New("the proof's COSE_Key is not an EC2 key on P-256")
 	}
-	x, err1 := proofBytes(key[-2])
-	y, err2 := proofBytes(key[-3])
-	if err1 != nil || err2 != nil || len(x) != 32 || len(y) != 32 {
-		return nil, errors.New("the proof's COSE_Key does not hold a 32-byte x and y")
+	// A y that is not a byte string, such as the sign bit of a compressed point, decodes to nothing, and then the
+	// point has the wrong length, as it does when x has 32 bytes and y does not.
+	x, _ := proofBytes(key[-2])
+	y, _ := proofBytes(key[-3])
+	if len(x) != 32 {
+		return nil, errors.New("the proof's COSE_Key does not hold a 32-byte x")
 	}
 	pub, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), append(append([]byte{4}, x...), y...))
 	if err != nil {
