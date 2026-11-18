@@ -17,6 +17,10 @@ Before 1.0, a minor version may change the API.
   - DPoP proofs as CWTs, checked for each MOQT action: `cnf` with `ckt` (RFC 9679), `MOQTAction.Proof`,
     `Validator.ActxKey` and `AthKey`, which have no defaults, and `Validator.ProofReplay`, for ES256, ES384 and
     EdDSA proofs.
+- **`catmoqt`** (decision 0039): authorization for a MOQT relay with no MOQT library underneath. A `Session` keeps
+  draft-ietf-moq-transport-22's token cache, judges the CATs each request carries, and answers with a `Grant` or
+  an `Error` holding the draft's code. `Grant.Recheck` revalidates for `moqt-reval`, judging a DPoP-bound token
+  again without demanding its proof again (`cat.MOQTAction.Revalidating`).
 - **Encrypted tokens** (decision 0030): `cwt.DecryptMessage` for COSE_Encrypt0 with AES-GCM, and
   `cat.Validator.DecryptionKeys`. `catgeocoord` is enforced, and the limits on unencrypted `catnip` and `geohash`
   do not apply to encrypted claims.
@@ -33,8 +37,9 @@ Before 1.0, a minor version may change the API.
   unsupported (decision 0033).
 - A `cnf` claim may now name `ckt`, which binds MOQT proofs; a token naming it is refused over HTTP with
   `cat.ErrProof`, where it was refused as unsupported (decision 0038).
-- Full mutation runs cap each process's memory and use two workers, and a run in which no mutant lived is refused
-  as vacuous (decisions 0028 and 0034).
+- Full mutation runs cap each process's memory and use two workers, and refuse a configuration that sets
+  `test-cpu`. A run in which no mutant lived is refused as vacuous, except for `catmoqt`, which has no mutant known
+  to be equivalent (decisions 0028, 0034 and 0039).
 
 ## [0.1.0] - 2026-11-17
 
