@@ -24,7 +24,8 @@ jobs:
       # survivors, so the vacuous-run check of the full runs cannot apply here; refuse the cause instead.
       - name: Refuse test-cpu in any Gremlins config
         run: |
-          if grep -n 'test-cpu' .github/gremlins/*.yaml; then
+          # Match the setting itself, not the word: the configs mention test-cpu in comments warning against it.
+          if grep -nE '^[[:space:]]*test-cpu[[:space:]]*:' .github/gremlins/*.yaml; then
             echo "::error::test-cpu is set in a Gremlins config; Gremlins v0.6.0 then counts every mutant killed (decision 0028)."
             exit 1
           fi
