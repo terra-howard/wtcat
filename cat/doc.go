@@ -26,6 +26,8 @@
 //	geohash (282)        with Request.Location.Coordinates set: the client must be in a listed region; up to 4
 //	                     characters unencrypted, up to 12 in an encrypted token (decisions 0027 and 0030)
 //	catreplay (308)      with Validator.Replay set: 1 or 2 refuses a cti seen before; 0 never refuses
+//	                     over MOQT, one connection instead: with Validator.BindConnection set, refuses a token
+//	                     bound to another connection, and refuses one without a cti or an exp (decision 0037)
 //	catv (310)           must be 1
 //	catnip (311)         the client's address must lie in a listed prefix, or its ASN be listed
 //	catu (312)           each URI component must match, after normalization

@@ -54,6 +54,13 @@ type Validator struct {
 	// by a separate write lets two requests both pass (decision 0032's model shows the same for relays sharing a
 	// store). Every recipient that accepts the same tokens must share it.
 	Replay func(cti []byte) (seen bool)
+	// BindConnection, if set, enforces catreplay for MOQT requests, where draft-ietf-moq-c4m reads it as one
+	// connection (decision 0037). It binds cti to connection if cti is unbound, and reports whether cti is bound to a
+	// different connection. Binding and reporting must be one atomic step, every recipient that accepts the same
+	// tokens must share the store, and a binding must be kept until the time until, the token's exp, even after its
+	// connection ends: decision 0032's model shows each of the three is needed. It is called only for tokens that
+	// pass every other check. MOQT requests never call Replay, and HTTP requests never call BindConnection.
+	BindConnection func(cti []byte, connection string, until time.Time) (elsewhere bool)
 	// Issuance, if set, lets the Validator issue tokens: renewals under catr (decision 0022). Nil turns issuing off.
 	Issuance *Issuance
 	// Types lists the values of the COSE typ header (RFC 9596) this recipient accepts. A token without typ is
@@ -290,8 +297,32 @@ func (v *Validator) accept(claims *Claims, issuer string, req *Request, token st
 		return err
 	}
 	// Last, so that a refused token never uses up its cti. Values above 2 are undefined and treated as 1.
-	if claims.replay != nil && *claims.replay != 0 && claims.CWTID != nil && v.Replay != nil && v.Replay(claims.CWTID) {
+	if claims.replay == nil || *claims.replay == 0 {
+		return nil
+	}
+	if req != nil && req.MOQT != nil {
+		return v.bindConnection(claims, req)
+	}
+	if claims.CWTID != nil && v.Replay != nil && v.Replay(claims.CWTID) {
 		return ErrReplay
+	}
+	return nil
+}
+
+// bindConnection applies catreplay to a MOQT request, as one connection (decision 0037).
+func (v *Validator) bindConnection(claims *Claims, req *Request) error {
+	if claims.CWTID == nil || claims.Expiry == nil {
+		return fmt.Errorf("%w: over MOQT, a token with catreplay needs a cti and an exp", ErrReplay)
+	}
+	if v.BindConnection == nil {
+		return nil
+	}
+	if req.Connection == nil || req.Connection.ID == "" {
+		return fmt.Errorf("%w: the MOQT request names no connection to bind the token to", ErrReplay)
+	}
+	until := time.Unix(claims.Expiry.Unix(), int64(math.Ceil(claims.Expiry.Fraction()*1e9)))
+	if v.BindConnection(claims.CWTID, req.Connection.ID, until) {
+		return fmt.Errorf("%w: the token is bound to another MOQT connection", ErrReplay)
 	}
 	return nil
 }
