@@ -1,6 +1,7 @@
 package cat_test
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/terra-howard/wtcat/cat"
@@ -81,5 +82,39 @@ func TestCatreplayIsCheckedLast(t *testing.T) {
 	wantKind(t, err, cat.ErrExpired)
 	if _, err := replayValidator(m).Validate(claimsToken(t, map[any]any{7: []byte{9}, 308: 1})); err != nil {
 		t.Fatalf("a fresh token with the refused token's cti: %v", err)
+	}
+}
+
+// TestCatreplayConcurrentUseAcceptsOnce is decision 0032's OneConnection invariant for single use over HTTP: with an
+// atomic Replay, many concurrent validations of one catreplay 1 token accept it exactly once. Run with -race.
+func TestCatreplayConcurrentUseAcceptsOnce(t *testing.T) {
+	var mu sync.Mutex
+	seen := map[string]bool{}
+	v := validator()
+	v.Replay = func(cti []byte) bool {
+		mu.Lock()
+		defer mu.Unlock()
+		was := seen[string(cti)]
+		seen[string(cti)] = true
+		return was
+	}
+	token := claimsToken(t, map[any]any{7: []byte{1}, 308: 1})
+	const n = 64
+	var wg sync.WaitGroup
+	var accepted sync.Map
+	for i := range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := v.Validate(token); err == nil {
+				accepted.Store(i, true)
+			}
+		}()
+	}
+	wg.Wait()
+	count := 0
+	accepted.Range(func(any, any) bool { count++; return true })
+	if count != 1 {
+		t.Fatalf("%d of %d concurrent validations accepted the token, want exactly 1", count, n)
 	}
 }
