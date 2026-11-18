@@ -2,7 +2,7 @@
 
 - **Status:** accepted, 2026-11-18
 - **Decided by:** Claude, under Terra Howard's delegation (the MoQT roadmap, 2026-11-18).
-- **Review:** unreviewed. The owner has not yet reviewed this decision (marked 2026-11-18).
+- **Review:** reviewed and approved by the owner, 2026-11-18 (*"Consider all of the decisions reviewed by me and approved, 0006-0040."*).
 
 ## Question asked
 

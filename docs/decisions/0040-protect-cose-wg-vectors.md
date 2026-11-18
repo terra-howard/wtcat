@@ -4,7 +4,7 @@
 - **Decided by:** Terra Howard, that the COSE working group's vectors for several signers or recipients and for
   COSE_Encrypt0 join the protected set (*"We can do it now."*, after the candidates below). Its shape was chosen by
   Claude under her delegation.
-- **Review:** the owner approves it by adding the four MANIFEST lines (decision 0003).
+- **Review:** reviewed and approved by the owner, 2026-11-18 (*"Consider all of the decisions reviewed by me and approved, 0006-0040."*).
 
 ## Question asked
 
