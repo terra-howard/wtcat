@@ -449,6 +449,26 @@ func TestCnfAndCatdpopNulls(t *testing.T) {
 	}
 }
 
+// TestMOQTRevalidatingSkipsTheProof checks MOQTAction.Revalidating: the token is judged in full, but the proof is not
+// demanded again (decision 0039).
+func TestMOQTRevalidatingSkipsTheProof(t *testing.T) {
+	d := newDPoPCase(t)
+	token := d.token(t)
+	again := sportsRequest(nil)
+	again.MOQT.Revalidating = true
+	if _, err := dpopValidator().ValidateRequest(token, again); err != nil {
+		t.Fatalf("revalidating without a proof: %v", err)
+	}
+	expired := newDPoPCase(t)
+	expired.extra = map[any]any{4: testNow.Unix()}
+	if _, err := dpopValidator().ValidateRequest(expired.token(t), again); !errors.Is(err, cat.ErrExpired) {
+		t.Fatalf("revalidating an expired token: got %v, want cat.ErrExpired", err)
+	}
+	if _, err := dpopValidator().ValidateRequest(token, sportsRequest(nil)); !errors.Is(err, cat.ErrProof) {
+		t.Fatalf("a new request without a proof: got %v, want cat.ErrProof", err)
+	}
+}
+
 func TestMOQTDPoPNeedsItsClaimKeys(t *testing.T) {
 	d := newDPoPCase(t)
 	token := d.token(t)

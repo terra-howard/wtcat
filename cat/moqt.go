@@ -36,6 +36,11 @@ type MOQTAction struct {
 	Track     []byte
 	// Proof is the DPoP proof sent with the action, a COSE_Sign1, which a token with cnf requires (decision 0038).
 	Proof []byte
+	// Revalidating says the token is being validated again, for moqt-reval, for an action it already authorized
+	// with its proof: the token is judged in full, but the proof is not demanded again, since it covered the start
+	// of the action, its window passes, and no message brings a new one (decision 0039). Never set it for a new
+	// action, which it would let through without proof of possession.
+	Revalidating bool
 }
 
 var (

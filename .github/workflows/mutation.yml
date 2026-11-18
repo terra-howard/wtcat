@@ -22,7 +22,12 @@ jobs:
       matrix:
         # Each package's flags and thresholds are in .github/gremlins/<package>.yaml. They cannot go on the command
         # line: Gremlins v0.6.0 ignores its threshold flags there (decision 0024).
-        package: [cwt, cat, cathttp]
+        package: [cwt, cat, cathttp, catmoqt]
+        include:
+          # catmoqt has no mutant known to be equivalent, so its run cannot be judged vacuous by none living; its
+          # configuration is checked for test-cpu instead, the setting that made runs vacuous (decision 0039).
+          - package: catmoqt
+            vacuity: config
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -38,10 +43,14 @@ jobs:
       # package has mutants classified as equivalent, which no test can kill, so a run in which none lived is vacuous.
       - name: Refuse a vacuous run
         run: |
+          if grep -nE '^[[:space:]]*test-cpu[[:space:]]*:' .github/gremlins/${{ matrix.package }}.yaml; then
+            echo "::error::test-cpu is set in .github/gremlins/${{ matrix.package }}.yaml; Gremlins v0.6.0 then counts every mutant killed (decision 0028)."
+            exit 1
+          fi
           lived=$(jq .mutants_lived gremlins.json)
           killed=$(jq .mutants_killed gremlins.json)
           echo "killed $killed, lived $lived"
-          if [ "$lived" -lt 1 ]; then
+          if [ "${{ matrix.vacuity }}" != config ] && [ "$lived" -lt 1 ]; then
             echo "::error::No mutant lived, but ./${{ matrix.package }} has known equivalent mutants, so this run is vacuous (decision 0028)."
             exit 1
           fi

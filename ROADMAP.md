@@ -36,7 +36,8 @@ namespaces and track names, and denies everything else.
 6. **Composite claims** (`or`, `and`, `nor`), which the draft's multi-scope examples use. Their own IETF draft has
    to settle claim keys first ([the design explanation](docs/explanation/design.md) leaves them out for that reason).
 7. **A MOQT integration package**, the counterpart of `cathttp`, that a Go MOQT relay calls at SETUP and for each
-   action. Which Go MOQT library it targets is still to be chosen.
+   action. Decision 0039 builds it, `catmoqt`, with no MOQT library underneath, since none yet carries draft 22's
+   authorization tokens; a thin adapter for one waits until one does.
 
 **Independent checks:** the draft's Appendix A test vectors, run as protected-style fixtures with their source
 recorded, and any other implementation's tokens, as decision 0026 does for HTTP CATs.
