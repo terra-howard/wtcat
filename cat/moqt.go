@@ -3,6 +3,7 @@ package cat
 import (
 	"bytes"
 	"fmt"
+	"slices"
 
 	"github.com/fxamacker/cbor/v2"
 )
@@ -130,12 +131,9 @@ func decodeScope(raw cbor.RawMessage) (moqtScope, error) {
 		return s, malformed("a moqt scope has no actions")
 	}
 	for _, a := range actions {
-		if majorType(a) != majorUnsigned && majorType(a) != majorNegative {
-			return s, malformed("a moqt action is not an integer")
-		}
-		var n int64
+		var n int64 // decoding into an integer refuses any other type
 		if err := decMode.Unmarshal(a, &n); err != nil {
-			return s, malformed("a moqt action: %v", err)
+			return s, malformed("a moqt action is not an integer: %v", err)
 		}
 		s.actions = append(s.actions, n)
 	}
@@ -148,15 +146,12 @@ func decodeScope(raw cbor.RawMessage) (moqtScope, error) {
 			return s, malformed("a moqt scope has an empty list of namespace matches")
 		}
 		for i, f := range fields {
+			m := binMatch{kind: -1}
 			if len(f) == 1 && f[0] == cborNull {
 				if i != len(fields)-1 {
 					return s, malformed("nil is not the last of a moqt scope's namespace matches")
 				}
-				s.namespace = append(s.namespace, binMatch{kind: -1})
-				continue
-			}
-			m, err := decodeBinMatch(f)
-			if err != nil {
+			} else if m, err = decodeBinMatch(f); err != nil {
 				return s, err
 			}
 			s.namespace = append(s.namespace, m)
@@ -216,14 +211,7 @@ func array(raw cbor.RawMessage, what string) ([]cbor.RawMessage, error) {
 
 // authorizes reports whether a scope allows a MOQT action.
 func (s moqtScope) authorizes(a *MOQTAction) bool {
-	listed := false
-	for _, n := range s.actions {
-		if n == int64(a.Action) {
-			listed = true
-			break
-		}
-	}
-	if !listed {
+	if !slices.Contains(s.actions, int64(a.Action)) {
 		return false
 	}
 	for i, m := range s.namespace {

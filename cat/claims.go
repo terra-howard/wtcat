@@ -170,22 +170,20 @@ func decodeClaimsIn(payload []byte, encrypted bool, keys claimKeys) (*Claims, er
 			return nil, malformed("claim key of type %T", k)
 		}
 		switch key {
-		case keys.moqt:
-			if len(value) > 0 && majorType(value) == majorTag {
-				return nil, malformed("the moqt claim is tagged, which section 4.5 forbids")
-			}
+		case keys.moqt: // a tag, like any other type that is not a map, is refused by decodeMOQT
 			scopes, unknown, err := decodeMOQT(value)
 			if err != nil {
 				return nil, err
 			}
 			c.moqt, c.moqtUnknownKey = scopes, unknown
-			continue
 		case keys.moqtReval:
 			return nil, unsupported("moqt-reval (claim %d): revalidation is not supported yet (decision 0035)", key)
+		default:
+			if err := c.decodeClaim(key, value); err != nil {
+				return nil, err
+			}
 		}
-		if err := c.decodeClaim(key, value); err != nil {
-			return nil, err
-		}
+
 	}
 	return c, nil
 }

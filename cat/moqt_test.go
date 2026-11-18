@@ -154,6 +154,8 @@ func TestMOQTSyntax(t *testing.T) {
 		"nil before the end":      map[any]any{0: []any{[]any{[]any{4}, []any{nil, []byte("a")}}}},
 		"an empty namespace list": map[any]any{0: []any{[]any{[]any{4}, []any{}}}},
 		"a text match":            map[any]any{0: []any{[]any{[]any{4}, []any{"a"}}}},
+		"an integer match":        map[any]any{0: []any{[]any{[]any{4}, []any{7}}}},
+		"a tagged claim":          cbor.Tag{Number: 24, Content: []byte{0xa0}},
 		"match type 3":            map[any]any{0: []any{[]any{[]any{4}, []any{[]any{3, []byte("a")}}}}},
 		"a match of one element":  map[any]any{0: []any{[]any{[]any{4}, []any{[]any{1}}}}},
 		"a nil track match":       map[any]any{0: []any{[]any{[]any{4}, []any{[]byte("a")}, nil}}},
