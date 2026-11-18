@@ -57,3 +57,24 @@ that refused it, which `Validator.IfResponse` uses to answer as the token's `cat
 |---|---|
 | `cathttp.ErrNoToken` | The request carries no token where the `Authorizer` looks. The middleware answers 401 and does not mark the response private |
 | `cathttp.ErrField` | The `CTA-Common-Access-Token` field, or the configured one, is present but is not a single token or string. Section 4.4 then forbids looking elsewhere, so the request has no usable token |
+
+## `catmoqt`
+
+`Session.Authorize` returns a `*catmoqt.Error`. Its `Session` field says whether the relay closes the session or
+refuses the request with REQUEST_ERROR, and `Code` is the draft-ietf-moq-transport-22 code to send. `Err` says why,
+and is the `cat` error when a token was judged, so `errors.Is` works through it.
+
+| Code | When |
+|---|---|
+| `RequestUnauthorized`, `SessionUnauthorized` | No CAT in the message, or the first CAT is refused for a reason other than the two below. SETUP gets the session code |
+| `RequestExpiredAuthToken`, `SessionExpiredAuthToken` | The first CAT is expired (`cat.ErrExpired`) |
+| `RequestMalformedAuthToken`, `SessionMalformedAuthToken` | The first CAT is malformed (`cwt.ErrMalformed`), or a token is repeated in one message |
+| `SessionKeyValueFormattingError` | A Token structure cannot be decoded |
+| `SessionProtocolViolation` | DELETE or USE_ALIAS in SETUP |
+| `SessionUnknownAuthTokenAlias` | USE_ALIAS or DELETE of an alias that is not registered. The draft says to reject the message, but defines this code only for closing the session ([0039](../decisions/0039-catmoqt.md)) |
+| `SessionDuplicateAuthTokenAlias` | A REGISTER of an alias already registered |
+| `SessionAuthTokenCacheOverflow` | A REGISTER outside SETUP past `MaxCacheSize`. In SETUP, the token is used by value instead |
+
+A request is granted by the first CAT that is acceptable for it, so the code names the first CAT's failure only when
+none is.
+

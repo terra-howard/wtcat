@@ -1,6 +1,6 @@
 # Why the validator is built the way it is
 
-This page explains the design of packages `cwt`, `cat` and `cathttp`: what they promise, where they are strict, and
+This page explains the design of packages `cwt`, `cat`, `cathttp` and `catmoqt`: what they promise, where they are strict, and
 why. The reasoning was worked out one decision at a time, in [docs/decisions/](../decisions/); this page puts it in
 one place. Each section names the decisions behind it, for the full argument.
 
@@ -15,6 +15,9 @@ Association and is not reproduced here.
   described by a plain struct. It knows nothing about HTTP servers.
 - **`cathttp`** knows HTTP: where tokens are found in a request, how to remove one from a URI, and how to answer,
   renew and forward.
+- **`catmoqt`** is the same layer for MOQT: a session's token cache, which Token structures name which tokens, and
+  which of draft-ietf-moq-transport-22's codes a refusal gets. It takes the parameter values a MOQT stack has
+  already parsed, so it depends on no MOQT library ([0039](../decisions/0039-catmoqt.md)).
 
 The split keeps each layer testable on its own and usable alone: a recipient on an edge runtime can use `cat`
 without `net/http`, and a CWT profile other than CAT can use `cwt`
